@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dev Browser — Embedded Terminal</title>
+  <link rel="stylesheet" href="terminal.css">
+</head>
+<body style="background: transparent; margin: 0;">
+  <div id="terminal-drawer" class="terminal-drawer open">
+    <div class="terminal-topbar">
+      <div id="terminal-tabs-strip" class="terminal-tabs-strip">
+        <!-- Dynamically rendered tabs -->
+      </div>
+      <div class="terminal-actions">
+        <button id="terminal-add-tab" class="term-btn" title="New Terminal Tab">➕</button>
+        <button id="terminal-split-h" class="term-btn" title="Split Horizontally">◫ H-Split</button>
+        <button id="terminal-split-v" class="term-btn" title="Split Vertically">⬓ V-Split</button>
+        <button id="terminal-clear-btn" class="term-btn" title="Clear Buffer">🧹 Clear</button>
+        <button id="terminal-close-btn" class="term-btn" title="Close Panel">✕</button>
+      </div>
+    </div>
+    <div id="terminal-split-wrapper" class="terminal-split-wrapper split-none">
+      <div id="terminal-screen-primary" class="terminal-screen terminal-screen-primary"></div>
+      <div id="terminal-screen-secondary" class="terminal-screen terminal-screen-secondary" style="display: none;"></div>
+    </div>
+  </div>
+
+  <script src="terminal.js"></script>
+</body>
+</html>

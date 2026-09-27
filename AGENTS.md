@@ -130,6 +130,31 @@ Each task is self-contained with enough context to implement independently.
 
 ---
 
-## 🟡 Phase 3 — Developer Workstation (Next)
-- Embedded Terminal, Dev Toolkit, DNS Panel, Theme Engine, Docker Dashboard.
-- **Status:** ⬜ Not started
+## 🟢 Phase 3 — Developer Workstation (Completed)
+
+### Task 3.1: Embedded Terminal
+- **Goal:** Terminal controller and UI (`terminal.html`, `terminal.css`, `terminal.js`), WebSocket bridge to daemon PTY, multi-tab terminal, horizontal/vertical split view, clipboard copy/paste, clear, and `<leader>t` shortcut integration.
+- **Files:** `src/dev/terminal/`, `src/dev/vim-mode/vim-controller.js`, `src/dev/lua-engine/keymap.js`
+- **Status:** ✅ Completed
+
+### Task 3.2: Comprehensive Offline Dev Toolkit
+- **Goal:** 8 offline developer tools (Base64 standard & url-safe, JWT inspector & claims, JSON formatter/validator/minifier, Hash generator MD5/SHA-1/SHA-256/SHA-512 with native `dev.crypto.digest` bridge for `plugins/hash.lua`, UUID v4 generator & batch, Timestamp/Epoch converter with relative times, Regex tester with flags/indices/groups, `.http` RFC 7230 REST client with timing) and UI panel.
+- **Files:** `src/dev/dev-toolkit/`, `src/dev/lua-engine/lua-bridge.js`
+- **Status:** ✅ Completed
+
+### Task 3.3: DNS Panel & DNS-over-HTTPS (DoH) Engine
+- **Goal:** DoH engine supporting Cloudflare, Quad9, Google, NextDNS, and custom DoH resolvers, per-domain DNS override table (e.g. `test.local` -> `127.0.0.1`), query logging, and Lua bridge (`network.dns.set`, `network.dns.override`).
+- **Files:** `src/dev/network-panel/dns-engine.js`, `src/dev/network-panel/network-panel.html/js/css`, `src/dev/lua-engine/lua-bridge.js`
+- **Status:** ✅ Completed
+
+### Task 3.4: Theme Engine & Arc-Style Boosts
+- **Goal:** 7 built-in developer themes (`gruvbox-dark`, `catppuccin-mocha`, `tokyo-night`, `dracula`, `nord`, `one-dark`, `light`), CSS variable token injection across browser chrome and panels, scheduled day/night auto-switching, per-domain CSS/JS Boost injection (`boost.create()`), and Lua bridge integration.
+- **Files:** `src/dev/theme-engine/`, `src/dev/lua-engine/lua-bridge.js`
+- **Status:** ✅ Completed (65 new tests passing; 293 total passing)
+
+---
+
+## 🟡 Phase 4 / Phase 3 Remaining — Docker Dashboard & Packaging (Next)
+- Docker Dashboard (`daemon` bridge), full cross-platform build infrastructure and packaging.
+- **Status:** ⬜ Next
+

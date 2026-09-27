@@ -110,12 +110,58 @@
             </div>
           </label>
           <label class="dns-radio">
+            <input type="radio" name="doh-resolver" value="google-doh">
+            <div>
+              <strong>Google Public DNS (8.8.8.8)</strong>
+              <span>Global high-reliability DNS</span>
+            </div>
+          </label>
+          <label class="dns-radio">
+            <input type="radio" name="doh-resolver" value="nextdns">
+            <div>
+              <strong>NextDNS</strong>
+              <span>Customizable privacy & ad-blocking DoH</span>
+            </div>
+          </label>
+          <label class="dns-radio">
             <input type="radio" name="doh-resolver" value="system">
             <div>
               <strong>System Default DNS</strong>
               <span>Standard OS network resolver</span>
             </div>
           </label>
+        </div>
+
+        <div class="custom-doh-container" style="margin-top: 14px;">
+          <input type="text" id="custom-doh-url" class="dns-input" placeholder="Custom DoH URL (e.g. https://dns.adguard.com/dns-query)">
+          <button id="set-custom-doh-btn" class="btn btn-secondary">Apply Custom DoH</button>
+        </div>
+      </section>
+
+      <!-- Per-Domain DNS Overrides Card -->
+      <section class="card overrides-card">
+        <div class="card-header">
+          <h2>Per-Domain DNS Overrides</h2>
+          <span class="card-hint">Map custom hostnames directly to local or remote IPs</span>
+        </div>
+        <div class="override-input-row" style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <input type="text" id="dns-override-domain" class="dns-input" placeholder="Domain (e.g. test.local)">
+          <input type="text" id="dns-override-ip" class="dns-input" placeholder="IP Address (e.g. 127.0.0.1)">
+          <button id="add-dns-override-btn" class="btn btn-primary">Add Override</button>
+        </div>
+        <div class="override-table-container">
+          <table class="override-table" id="dns-override-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="text-align: left; border-bottom: 1px solid var(--border-color, #45475a);">
+                <th style="padding: 6px;">Domain</th>
+                <th style="padding: 6px;">Target IP</th>
+                <th style="padding: 6px; text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="dns-override-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
         </div>
       </section>
 

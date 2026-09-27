@@ -1,0 +1,159 @@
+/**
+ * Dev Browser - Terminal Styling
+ * Workstation bottom drawer terminal with tabs and split-view support.
+ */
+
+:root {
+  --term-bg: #181825;
+  --term-tab-bg: #11111b;
+  --term-border: #313244;
+  --term-text: #cdd6f4;
+  --term-accent: #cba6f7;
+  --term-font: "Fira Code", "JetBrains Mono", Consolas, monospace;
+}
+
+.terminal-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 320px;
+  background-color: var(--term-bg);
+  border-top: 1px solid var(--term-border);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  z-index: 9999;
+  transform: translateY(100%);
+  transition: transform 0.2s ease-in-out;
+}
+
+.terminal-drawer.open {
+  transform: translateY(0);
+}
+
+.terminal-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--term-tab-bg);
+  border-bottom: 1px solid var(--term-border);
+  padding: 0 10px;
+  height: 36px;
+  user-select: none;
+}
+
+.terminal-tabs-strip {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  align-items: center;
+  height: 100%;
+}
+
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 28px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #a6adc8;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.terminal-tab:hover {
+  background-color: #1e1e2e;
+  color: var(--term-text);
+}
+
+.terminal-tab.active {
+  background-color: var(--term-bg);
+  border-color: var(--term-border);
+  border-bottom-color: transparent;
+  color: var(--term-accent);
+  font-weight: 500;
+}
+
+.tab-close {
+  background: transparent;
+  border: none;
+  color: #6c7086;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 2px;
+}
+
+.tab-close:hover {
+  background-color: rgba(243, 139, 168, 0.2);
+  color: #f38ba8;
+}
+
+.terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.term-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #a6adc8;
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.term-btn:hover {
+  background-color: #313244;
+  color: var(--term-text);
+}
+
+.terminal-split-wrapper {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.terminal-split-wrapper.split-none .terminal-screen-primary {
+  flex: 1;
+}
+
+.terminal-split-wrapper.split-horizontal {
+  flex-direction: row;
+}
+
+.terminal-split-wrapper.split-horizontal .terminal-screen-primary,
+.terminal-split-wrapper.split-horizontal .terminal-screen-secondary {
+  flex: 1;
+  border-right: 1px solid var(--term-border);
+}
+
+.terminal-split-wrapper.split-vertical {
+  flex-direction: column;
+}
+
+.terminal-split-wrapper.split-vertical .terminal-screen-primary,
+.terminal-split-wrapper.split-vertical .terminal-screen-secondary {
+  flex: 1;
+  border-bottom: 1px solid var(--term-border);
+}
+
+.terminal-screen {
+  background-color: var(--term-bg);
+  color: var(--term-text);
+  font-family: var(--term-font);
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  outline: none;
+}

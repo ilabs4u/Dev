@@ -44,10 +44,19 @@ class VimController {
         } catch {
           return null;
         }
+      },
+      toggleTerminal: () => {
+        try {
+          const { defaultTerminal } = require("../terminal");
+          return defaultTerminal.toggle();
+        } catch {
+          return null;
+        }
       }
     };
     this.agentTreeOverlay = options.agentTreeOverlay || null;
     this.aiSidebar = options.aiSidebar || null;
+    this.terminal = options.terminal || null;
     this.browserDelegate = Object.assign({}, defaultDelegate, options.browserDelegate || {});
 
     this.boundKeyHandler = this.onKeyDown.bind(this);
@@ -105,6 +114,20 @@ class VimController {
       try {
         const { defaultSidebar } = require("../ai-sidebar");
         return defaultSidebar.toggle();
+      } catch {
+        return null;
+      }
+    });
+    this.keymap.registerActionHandler("toggle_terminal", () => {
+      if (this.terminal && typeof this.terminal.toggle === "function") {
+        return this.terminal.toggle();
+      }
+      if (this.browserDelegate && typeof this.browserDelegate.toggleTerminal === "function") {
+        return this.browserDelegate.toggleTerminal();
+      }
+      try {
+        const { defaultTerminal } = require("../terminal");
+        return defaultTerminal.toggle();
       } catch {
         return null;
       }
@@ -171,6 +194,15 @@ class VimController {
     }
 
     this.keymap.handleKeyEvent(event);
+  }
+
+  handleKey(key) {
+    const event = {
+      key,
+      target: { tagName: "BODY" },
+      preventDefault: () => {}
+    };
+    return this.onKeyDown(event);
   }
 
   attach(target = null) {

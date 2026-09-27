@@ -36,6 +36,49 @@ class DevLuaBridge {
       claude: { model: "claude-3-5-sonnet-20241022", url: "https://api.anthropic.com", api_key: "" },
       lmstudio: { model: "local-model", url: "http://localhost:1234/v1" }
     };
+    this.crypto = {
+      digest: (algo, input) => {
+        const { digest } = require("../dev-toolkit/hash");
+        return digest(algo, input);
+      }
+    };
+    this.ui = {
+      set_theme: (themeName) => {
+        const { defaultThemeManager } = require("../theme-engine");
+        return defaultThemeManager.setTheme(themeName);
+      }
+    };
+    this.theme = {
+      list: () => {
+        const { defaultThemeManager } = require("../theme-engine");
+        return defaultThemeManager.listThemes();
+      },
+      set: (themeName) => {
+        const { defaultThemeManager } = require("../theme-engine");
+        return defaultThemeManager.setTheme(themeName);
+      }
+    };
+    this.boost = {
+      create: (domain, opts) => {
+        const { defaultBoostManager } = require("../theme-engine");
+        return defaultBoostManager.create(domain, opts);
+      },
+      list: () => {
+        const { defaultBoostManager } = require("../theme-engine");
+        return defaultBoostManager.list();
+      }
+    };
+    this.dns = {
+      set: (resolver) => {
+        const { defaultDnsEngine } = require("../network-panel");
+        this.networkSettings.dns.resolver = resolver;
+        return defaultDnsEngine.setResolver(resolver);
+      },
+      override: (domain, ip) => {
+        const { defaultDnsEngine } = require("../network-panel");
+        return defaultDnsEngine.setOverride(domain, ip);
+      }
+    };
     this.consoleCallback = null;
   }
 
@@ -166,7 +209,35 @@ class DevLuaBridge {
 
       const dnsSetMatch = line.match(/^network\.dns\.set\(\s*["']([^"']+)["']/);
       if (dnsSetMatch) {
-        this.networkSettings.dns.resolver = dnsSetMatch[1];
+        this.dns.set(dnsSetMatch[1]);
+        continue;
+      }
+
+      // Handle network.dns.override(domain, ip)
+      const dnsOverrideMatch = line.match(/^network\.dns\.override\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/);
+      if (dnsOverrideMatch) {
+        this.dns.override(dnsOverrideMatch[1], dnsOverrideMatch[2]);
+        continue;
+      }
+
+      // Handle dev.ui.set_theme(name) or theme.set(name)
+      const themeSetMatch = line.match(/^(?:dev\.ui\.set_theme|theme\.set)\(\s*["']([^"']+)["']\s*\)/);
+      if (themeSetMatch) {
+        this.ui.set_theme(themeSetMatch[1]);
+        continue;
+      }
+
+      // Handle boost.create(domain, { css = "...", js = "..." })
+      const boostMatch = line.match(/^boost\.create\(\s*["']([^"']+)["']/);
+      if (boostMatch) {
+        const domain = boostMatch[1];
+        let css = "";
+        let js = "";
+        const cssMatch = line.match(/css\s*=\s*["']([^"']*)["']/);
+        if (cssMatch) css = cssMatch[1];
+        const jsMatch = line.match(/js\s*=\s*["']([^"']*)["']/);
+        if (jsMatch) js = jsMatch[1];
+        this.boost.create(domain, { css, js });
         continue;
       }
 
@@ -175,7 +246,7 @@ class DevLuaBridge {
         if (val) this.networkSettings.proxy.default = val;
       } else if (line.includes("network.dns.resolver")) {
         const val = line.split("=")[1]?.replace(/["';\s]/g, "");
-        if (val) this.networkSettings.dns.resolver = val;
+        if (val) this.dns.set(val);
       }
 
       // Handle ai.default_backend = "..."
@@ -300,6 +371,21 @@ class DevLuaBridge {
 
   getPlugins() {
     return Array.from(this.plugins);
+  }
+
+  loadPlugin(name) {
+    this.plugins.add(name);
+    if (name === "hash") {
+      const { digest } = require("../dev-toolkit/hash");
+      return {
+        name: "Hash Generator",
+        description: "Generate MD5, SHA-1, SHA-256 hashes",
+        version: "1.0.0",
+        sha256: (input) => digest("SHA-256", input),
+        sha1: (input) => digest("SHA-1", input)
+      };
+    }
+    return { name };
   }
 
   getLogs() {

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dev Browser — Developer Toolkit</title>
+  <link rel="stylesheet" href="dev-toolkit.css">
+</head>
+<body class="toolkit-body">
+  <div class="toolkit-container">
+    <header class="toolkit-header">
+      <div class="toolkit-title">
+        <span>🛠️</span>
+        <span>Developer Workstation Toolkit</span>
+      </div>
+      <div>
+        <span class="badge badge-success">Offline Ready</span>
+      </div>
+    </header>
+
+    <nav class="toolkit-tabs">
+      <button class="toolkit-tab-btn active" data-tool="base64">🔤 Base64</button>
+      <button class="toolkit-tab-btn" data-tool="jwt">🔑 JWT Inspector</button>
+      <button class="toolkit-tab-btn" data-tool="json">📋 JSON Tools</button>
+      <button class="toolkit-tab-btn" data-tool="hash">#️⃣ Hash Generator</button>
+      <button class="toolkit-tab-btn" data-tool="uuid">🆔 UUID v4</button>
+      <button class="toolkit-tab-btn" data-tool="timestamp">⏱️ Timestamp / Epoch</button>
+      <button class="toolkit-tab-btn" data-tool="regex">🔍 Regex Tester</button>
+      <button class="toolkit-tab-btn" data-tool="http">🌐 .http REST Client</button>
+    </nav>
+
+    <main class="toolkit-content">
+      <!-- Base64 Panel -->
+      <section class="toolkit-panel active" data-panel="base64">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Base64 Encoder / Decoder</span>
+            <div class="tool-controls">
+              <label><input type="checkbox" id="b64-urlsafe"> URL-Safe</label>
+              <button class="btn btn-primary" id="b64-encode-btn">Encode</button>
+              <button class="btn" id="b64-decode-btn">Decode</button>
+            </div>
+          </div>
+          <textarea id="b64-input" class="tool-textarea" placeholder="Enter text to encode or base64 to decode..."></textarea>
+          <div style="margin-top: 12px;">
+            <div class="section-title" style="margin-bottom: 6px;">Output</div>
+            <textarea id="b64-output" class="tool-textarea" readonly placeholder="Output will appear here..."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- JWT Panel -->
+      <section class="toolkit-panel" data-panel="jwt">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">JWT Inspector</span>
+            <button class="btn btn-primary" id="jwt-inspect-btn">Inspect Token</button>
+          </div>
+          <textarea id="jwt-input" class="tool-textarea" placeholder="Paste encoded JSON Web Token (ey...)..."></textarea>
+        </div>
+        <div class="grid-2">
+          <div class="panel-section">
+            <div class="section-title" style="margin-bottom: 8px;">Header</div>
+            <textarea id="jwt-header" class="tool-textarea" readonly></textarea>
+          </div>
+          <div class="panel-section">
+            <div class="section-title" style="margin-bottom: 8px;">Payload (Claims)</div>
+            <textarea id="jwt-payload" class="tool-textarea" readonly></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- JSON Tools Panel -->
+      <section class="toolkit-panel" data-panel="json">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">JSON Formatter & Validator</span>
+            <div class="tool-controls">
+              <button class="btn btn-primary" id="json-format-btn">Format (2 Spaces)</button>
+              <button class="btn" id="json-minify-btn">Minify</button>
+              <button class="btn" id="json-validate-btn">Validate</button>
+            </div>
+          </div>
+          <textarea id="json-input" class="tool-textarea" style="min-height: 200px;" placeholder='{"status": "ok", "items": [1, 2, 3]}'></textarea>
+          <div id="json-status" style="margin-top: 8px;"></div>
+        </div>
+      </section>
+
+      <!-- Hash Generator Panel -->
+      <section class="toolkit-panel" data-panel="hash">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Hash Generator</span>
+            <span class="badge badge-success">MD5 · SHA-1 · SHA-256 · SHA-512</span>
+          </div>
+          <textarea id="hash-input" class="tool-textarea" placeholder="Enter plaintext to hash..."></textarea>
+          <div style="margin-top: 16px;">
+            <div class="hash-row">
+              <span class="hash-label">MD5</span>
+              <div class="hash-val-wrapper"><span id="hash-md5" class="hash-value">—</span></div>
+            </div>
+            <div class="hash-row">
+              <span class="hash-label">SHA-1</span>
+              <div class="hash-val-wrapper"><span id="hash-sha1" class="hash-value">—</span></div>
+            </div>
+            <div class="hash-row">
+              <span class="hash-label">SHA-256</span>
+              <div class="hash-val-wrapper"><span id="hash-sha256" class="hash-value">—</span></div>
+            </div>
+            <div class="hash-row">
+              <span class="hash-label">SHA-512</span>
+              <div class="hash-val-wrapper"><span id="hash-sha512" class="hash-value">—</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- UUID Panel -->
+      <section class="toolkit-panel" data-panel="uuid">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">UUID v4 Generator</span>
+            <div class="tool-controls">
+              <label><input type="checkbox" id="uuid-upper"> Uppercase</label>
+              <label><input type="checkbox" id="uuid-hyphens" checked> Hyphens</label>
+              <button class="btn btn-primary" id="uuid-gen-btn">Generate UUID</button>
+              <button class="btn" id="uuid-batch-btn">Batch (10)</button>
+            </div>
+          </div>
+          <textarea id="uuid-output" class="tool-textarea" readonly style="min-height: 150px;"></textarea>
+        </div>
+      </section>
+
+      <!-- Timestamp Panel -->
+      <section class="toolkit-panel" data-panel="timestamp">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Timestamp & Epoch Converter</span>
+            <button class="btn btn-primary" id="ts-now-btn">Current Time</button>
+          </div>
+          <input type="text" id="ts-input" class="tool-input" placeholder="Enter Epoch (ms/sec) or ISO 8601 string...">
+          <div style="margin-top: 16px;" id="ts-results">
+            <!-- Results populated dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Regex Panel -->
+      <section class="toolkit-panel" data-panel="regex">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Regex Matcher & Tester</span>
+          </div>
+          <div class="grid-2">
+            <div>
+              <label class="hash-label">Pattern</label>
+              <input type="text" id="regex-pattern" class="tool-input" placeholder="e.g. ([a-z]+)@([a-z]+)\.([a-z]+)">
+            </div>
+            <div>
+              <label class="hash-label">Flags</label>
+              <input type="text" id="regex-flags" class="tool-input" value="g">
+            </div>
+          </div>
+          <div style="margin-top: 12px;">
+            <label class="hash-label">Test String</label>
+            <textarea id="regex-test-str" class="tool-textarea" placeholder="Text to match against..."></textarea>
+          </div>
+          <div id="regex-matches-container" style="margin-top: 12px;"></div>
+        </div>
+      </section>
+
+      <!-- .http REST Client Panel -->
+      <section class="toolkit-panel" data-panel="http">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">RFC 7230 / .http REST Client</span>
+            <button class="btn btn-primary" id="http-execute-btn">Execute Request</button>
+          </div>
+          <textarea id="http-file-editor" class="tool-textarea" style="min-height: 180px;" placeholder="### Test API
+GET https://httpbin.org/get
+Accept: application/json"></textarea>
+        </div>
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Response</span>
+            <span id="http-timing-badge" class="badge badge-success">Ready</span>
+          </div>
+          <textarea id="http-response-body" class="tool-textarea" readonly style="min-height: 180px;"></textarea>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="dev-toolkit.js"></script>
+</body>
+</html>

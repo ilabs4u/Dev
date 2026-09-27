@@ -3,44 +3,58 @@
  * Logic for the Network & Proxy Center settings panel.
  */
 
-let ProxyManagerClass, IPMonitorClass, PROXY_MODES_DEF;
+let ProxyManagerClass, IPMonitorClass, PROXY_MODES_DEF, DnsEngineClass;
 if (typeof require !== "undefined") {
   try {
     const pm = require("./proxy-manager");
     ProxyManagerClass = pm.ProxyManager;
     PROXY_MODES_DEF = pm.PROXY_MODES;
     IPMonitorClass = require("./ip-monitor").IPMonitor;
+    DnsEngineClass = require("./dns-engine").DnsEngine;
   } catch {
     ProxyManagerClass = window.ProxyManager;
     IPMonitorClass = window.IPMonitor;
     PROXY_MODES_DEF = window.PROXY_MODES;
+    DnsEngineClass = window.DnsEngine;
   }
 } else {
   ProxyManagerClass = window.ProxyManager;
   IPMonitorClass = window.IPMonitor;
   PROXY_MODES_DEF = window.PROXY_MODES;
+  DnsEngineClass = window.DnsEngine;
 }
 
 class NetworkPanelUI {
   constructor(options = {}) {
     this.proxyManager = options.proxyManager || (ProxyManagerClass ? new ProxyManagerClass() : null);
     this.ipMonitor = options.ipMonitor || (IPMonitorClass ? new IPMonitorClass() : null);
+    this.dnsEngine = options.dnsEngine || (DnsEngineClass ? new DnsEngineClass() : null);
     this.dnsResolver = options.dnsResolver || "cloudflare-doh";
 
+    const getEl = id => (typeof document !== "undefined" && document.getElementById ? document.getElementById(id) : null);
+    const queryAll = sel => (typeof document !== "undefined" && document.querySelectorAll ? document.querySelectorAll(sel) : []);
+
     this.dom = {
-      globalStatusBadge: document.getElementById("global-status-badge"),
-      displayIP: document.getElementById("display-ip-address"),
-      displayMode: document.getElementById("display-routing-mode"),
-      displayLastChecked: document.getElementById("display-last-checked"),
-      refreshBtn: document.getElementById("refresh-ip-btn"),
-      rotateBtn: document.getElementById("quick-rotate-btn"),
-      newTorIdBtn: document.getElementById("new-tor-identity-btn"),
-      modeCards: document.querySelectorAll(".mode-card"),
-      dnsRadios: document.querySelectorAll("input[name='doh-resolver']")
+      globalStatusBadge: getEl("global-status-badge"),
+      displayIP: getEl("display-ip-address"),
+      displayMode: getEl("display-routing-mode"),
+      displayLastChecked: getEl("display-last-checked"),
+      refreshBtn: getEl("refresh-ip-btn"),
+      rotateBtn: getEl("quick-rotate-btn"),
+      newTorIdBtn: getEl("new-tor-identity-btn"),
+      modeCards: queryAll(".mode-card"),
+      dnsRadios: queryAll("input[name='doh-resolver']"),
+      customDohInput: getEl("custom-doh-url"),
+      setCustomDohBtn: getEl("set-custom-doh-btn"),
+      overrideDomainInput: getEl("dns-override-domain"),
+      overrideIpInput: getEl("dns-override-ip"),
+      addOverrideBtn: getEl("add-dns-override-btn"),
+      overrideTbody: getEl("dns-override-tbody")
     };
 
     this.initEvents();
     this.updateDisplay();
+    this.renderOverrides();
     if (this.ipMonitor) {
       this.ipMonitor.refreshIP();
     }
@@ -83,7 +97,33 @@ class NetworkPanelUI {
       this.dom.dnsRadios.forEach(radio => {
         radio.addEventListener("change", (e) => {
           this.dnsResolver = e.target.value;
+          if (this.dnsEngine) {
+            this.dnsEngine.setResolver(e.target.value);
+          }
         });
+      });
+    }
+
+    if (this.dom.setCustomDohBtn && this.dom.customDohInput) {
+      this.dom.setCustomDohBtn.addEventListener("click", () => {
+        const url = this.dom.customDohInput.value.trim();
+        if (url && this.dnsEngine) {
+          this.dnsEngine.setResolver(url);
+          this.dnsResolver = url;
+        }
+      });
+    }
+
+    if (this.dom.addOverrideBtn && this.dom.overrideDomainInput && this.dom.overrideIpInput) {
+      this.dom.addOverrideBtn.addEventListener("click", () => {
+        const domain = this.dom.overrideDomainInput.value.trim();
+        const ip = this.dom.overrideIpInput.value.trim();
+        if (domain && ip && this.dnsEngine) {
+          this.dnsEngine.setOverride(domain, ip);
+          this.dom.overrideDomainInput.value = "";
+          this.dom.overrideIpInput.value = "";
+          this.renderOverrides();
+        }
       });
     }
 
@@ -95,6 +135,38 @@ class NetworkPanelUI {
       this.ipMonitor.on("statusChange", () => this.updateDisplay());
       this.ipMonitor.on("ipChange", () => this.updateDisplay());
     }
+  }
+
+  renderOverrides() {
+    if (!this.dom.overrideTbody || !this.dnsEngine) return;
+    this.dom.overrideTbody.innerHTML = "";
+    const overrides = this.dnsEngine.listOverrides();
+    if (overrides.length === 0) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="3" style="padding: 10px; color: var(--text-muted, #6c7086); text-align: center;">No DNS overrides active</td>`;
+      this.dom.overrideTbody.appendChild(tr);
+      return;
+    }
+
+    overrides.forEach(({ domain, ip }) => {
+      const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid var(--border-color, #45475a)";
+      tr.innerHTML = `
+        <td style="padding: 6px; font-family: monospace;">${domain}</td>
+        <td style="padding: 6px; font-family: monospace; color: var(--accent-primary, #cba6f7);">${ip}</td>
+        <td style="padding: 6px; text-align: right;">
+          <button class="btn btn-sm btn-delete-override" data-domain="${domain}" style="padding: 2px 8px; font-size: 11px;">✕ Remove</button>
+        </td>
+      `;
+      const btn = tr.querySelector(".btn-delete-override");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          this.dnsEngine.removeOverride(domain);
+          this.renderOverrides();
+        });
+      }
+      this.dom.overrideTbody.appendChild(tr);
+    });
   }
 
   async setMode(mode) {
