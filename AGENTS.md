@@ -18,7 +18,7 @@ Each task is self-contained with enough context to implement independently.
 - **Constraints:** Don't modify engine/ files directly — generate patches. LuaJIT source should be vendored in `src/dev/lua-engine/vendor/`.
 - **Verify:** `print("hello from lua")` in init.lua outputs to browser console.
 - **Files:** `src/dev/lua-engine/`, `patches/003-lua-engine-hooks.patch`
-- **Status:** ⬜ Not started
+- **Status:** ✅ Completed
 
 ### Task 1.2: Implement keymap.set() Lua API
 - **Context:** LuaJIT is embedded (Task 1.1). Need to expose keyboard event interception.
@@ -26,7 +26,7 @@ Each task is self-contained with enough context to implement independently.
 - **Constraints:** Must support modal editing (normal/insert modes). Must not interfere with text input fields.
 - **Verify:** Press `j` on a webpage → page scrolls down. Type `j` in a text field → letter `j` appears.
 - **Files:** `src/dev/lua-engine/keymap.js`, `src/dev/vim-mode/`
-- **Status:** ⬜ Not started
+- **Status:** ✅ Completed
 
 ### Task 1.3: Build Command Palette
 - **Context:** Zen Browser already has UI infrastructure. We need a Ctrl+K command bar.
@@ -34,7 +34,7 @@ Each task is self-contained with enough context to implement independently.
 - **Constraints:** Must be fast (<50ms to open). Must support keyboard navigation (arrow keys, Enter, Escape).
 - **Verify:** Ctrl+K → type "new tab" → press Enter → new tab opens.
 - **Files:** `src/dev/command-palette/`
-- **Status:** ⬜ Not started
+- **Status:** ✅ Completed
 
 ### Task 1.4: Build Localhost Dashboard
 - **Context:** New Tab page should show active localhost services.
@@ -42,7 +42,7 @@ Each task is self-contained with enough context to implement independently.
 - **Constraints:** Scan must complete in <2 seconds. Must detect service type from HTTP response headers.
 - **Verify:** Start `python -m http.server 8000` → open new tab → shows "localhost:8000 — Python HTTP Server".
 - **Files:** `src/dev/localhost-dashboard/`
-- **Status:** ⬜ Not started
+- **Status:** ✅ Completed
 
 ### Task 1.5: Implement Basic Proxy Switching
 - **Context:** Dev Browser should support one-click IP change via proxy.
@@ -50,7 +50,7 @@ Each task is self-contained with enough context to implement independently.
 - **Constraints:** Use Firefox's `proxy.onRequest` API. Must show current IP in toolbar.
 - **Verify:** Click "Tor" → whatismyip.com shows a different IP.
 - **Files:** `src/dev/network-panel/`
-- **Status:** ⬜ Not started
+- **Status:** ✅ Completed
 
 ## 🟡 Phase 2 — AI Platform (Next)
 

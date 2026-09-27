@@ -43,13 +43,19 @@ class NetworkToolbarWidget {
       dropdown: null
     };
 
+    this._cleanupFns = [];
+    this._boundDocClick = null;
+
     if (this.proxyManager) {
-      this.proxyManager.on("modeChange", () => this.updateUI());
+      const unsub = this.proxyManager.on("modeChange", () => this.updateUI());
+      if (typeof unsub === "function") this._cleanupFns.push(unsub);
     }
 
     if (this.ipMonitor) {
-      this.ipMonitor.on("ipChange", () => this.updateUI());
-      this.ipMonitor.on("statusChange", () => this.updateUI());
+      const unsub1 = this.ipMonitor.on("ipChange", () => this.updateUI());
+      const unsub2 = this.ipMonitor.on("statusChange", () => this.updateUI());
+      if (typeof unsub1 === "function") this._cleanupFns.push(unsub1);
+      if (typeof unsub2 === "function") this._cleanupFns.push(unsub2);
     }
 
     if (this.container) {
@@ -58,6 +64,10 @@ class NetworkToolbarWidget {
   }
 
   mount(container) {
+    if (this._boundDocClick && typeof document !== "undefined") {
+      document.removeEventListener("click", this._boundDocClick);
+    }
+
     this.container = container;
     container.innerHTML = "";
 
@@ -106,14 +116,42 @@ class NetworkToolbarWidget {
       this.toggleDropdown();
     });
 
-    document.addEventListener("click", (e) => {
+    this._boundDocClick = (e) => {
       if (!widget.contains(e.target) && this.isOpen) {
         this.closeDropdown();
       }
-    });
+    };
+
+    if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+      document.addEventListener("click", this._boundDocClick);
+    }
 
     this.renderDropdown();
     this.updateUI();
+  }
+
+  unmount() {
+    if (this._boundDocClick && typeof document !== "undefined" && typeof document.removeEventListener === "function") {
+      document.removeEventListener("click", this._boundDocClick);
+      this._boundDocClick = null;
+    }
+    if (this.container && this.dom.widget) {
+      if (typeof this.dom.widget.remove === "function") {
+        this.dom.widget.remove();
+      }
+    }
+  }
+
+  destroy() {
+    this.unmount();
+    for (const cleanup of this._cleanupFns) {
+      try {
+        cleanup();
+      } catch {
+        // Ignore cleanup error
+      }
+    }
+    this._cleanupFns = [];
   }
 
   toggleDropdown() {

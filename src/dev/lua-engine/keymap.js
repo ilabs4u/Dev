@@ -100,6 +100,11 @@ class KeymapManager {
     this.clearSequenceBuffer();
   }
 
+  resetDefaults() {
+    this.clear();
+    this.registerDefaults();
+  }
+
   get(mode, key) {
     if (this.mappings.has(mode)) {
       const normalized = this.normalizeKey(key);
@@ -247,56 +252,75 @@ class KeymapManager {
 
     const modeMap = this.mappings.get(this.currentMode) || new Map();
 
-    // Check direct match
-    const directMatch = modeMap.get(keyStr);
-    if (directMatch && directMatch.originalKey.length === 1 && directMatch.originalKey === keyStr) {
-      // Direct single key match
-      if (typeof event.preventDefault === "function") event.preventDefault();
-      this.executeAction(directMatch.action, directMatch.opts);
-      return { handled: true, action: directMatch.action };
-    }
+    // 1. If we already have a buffered sequence prefix:
+    if (this.sequenceBuffer) {
+      const candidateSequence = this.sequenceBuffer + keyStr;
 
-    // Sequence handling (e.g. 'gg', '<leader>t')
-    const candidateSequence = this.sequenceBuffer + keyStr;
+      // Check exact sequence match
+      const seqMatch = modeMap.get(candidateSequence);
+      if (seqMatch) {
+        this.clearSequenceBuffer();
+        if (typeof event.preventDefault === "function") event.preventDefault();
+        this.executeAction(seqMatch.action, seqMatch.opts);
+        return { handled: true, action: seqMatch.action };
+      }
 
-    // Check if candidateSequence matches a registered mapping
-    const seqMatch = modeMap.get(candidateSequence);
-    if (seqMatch) {
+      // Check if it's still a valid prefix of an even longer registered sequence
+      let isPrefix = false;
+      for (const registeredKey of modeMap.keys()) {
+        if (registeredKey.startsWith(candidateSequence) && registeredKey.length > candidateSequence.length) {
+          isPrefix = true;
+          break;
+        }
+      }
+
+      if (isPrefix) {
+        this.sequenceBuffer = candidateSequence;
+        if (typeof event.preventDefault === "function") event.preventDefault();
+        if (this.bufferTimeout) clearTimeout(this.bufferTimeout);
+        this.bufferTimeout = setTimeout(() => {
+          this.clearSequenceBuffer();
+        }, this.bufferDelay);
+        return { handled: true, action: "buffering_sequence", buffer: this.sequenceBuffer };
+      }
+
+      // Sequence broken by this key: clear the sequence buffer and fall through to process keyStr fresh
       this.clearSequenceBuffer();
-      if (typeof event.preventDefault === "function") event.preventDefault();
-      this.executeAction(seqMatch.action, seqMatch.opts);
-      return { handled: true, action: seqMatch.action };
     }
 
-    // Check if candidateSequence is a prefix of any registered mapping
+    // 2. No active sequence buffer: check if keyStr begins a multi-key sequence
     let isPrefix = false;
     for (const registeredKey of modeMap.keys()) {
-      if (registeredKey.startsWith(candidateSequence) && registeredKey.length > candidateSequence.length) {
+      if (registeredKey.startsWith(keyStr) && registeredKey.length > keyStr.length) {
         isPrefix = true;
         break;
       }
     }
 
     if (isPrefix) {
-      this.sequenceBuffer = candidateSequence;
+      this.sequenceBuffer = keyStr;
       if (typeof event.preventDefault === "function") event.preventDefault();
       if (this.bufferTimeout) clearTimeout(this.bufferTimeout);
       this.bufferTimeout = setTimeout(() => {
+        // If single key was also a valid mapping, execute it on timeout
+        const singleMatch = modeMap.get(this.sequenceBuffer);
         this.clearSequenceBuffer();
+        if (singleMatch) {
+          this.executeAction(singleMatch.action, singleMatch.opts);
+        }
       }, this.bufferDelay);
       return { handled: true, action: "buffering_sequence", buffer: this.sequenceBuffer };
     }
 
-    // If candidateSequence didn't match and isn't a prefix, but single key matched:
+    // 3. Direct single key match
+    const directMatch = modeMap.get(keyStr);
     if (directMatch) {
-      this.clearSequenceBuffer();
       if (typeof event.preventDefault === "function") event.preventDefault();
       this.executeAction(directMatch.action, directMatch.opts);
       return { handled: true, action: directMatch.action };
     }
 
-    // No match
-    this.clearSequenceBuffer();
+    // 4. No match
     return { handled: false, reason: "unmapped_key" };
   }
 

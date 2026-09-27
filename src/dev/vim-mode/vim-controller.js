@@ -13,15 +13,24 @@ class VimController {
     this.scroller = new PageScroller(options.scroller || {});
     this.hints = new LinkHints();
     this.hudElement = null;
-    this.browserDelegate = options.browserDelegate || {
+    const defaultDelegate = {
       newTab: () => (typeof window !== "undefined" && window.open ? window.open("about:blank", "_blank") : null),
       closeTab: () => (typeof window !== "undefined" && window.close ? window.close() : null),
       nextTab: () => {},
       prevTab: () => {},
       goBack: () => (typeof window !== "undefined" && window.history ? window.history.back() : null),
       goForward: () => (typeof window !== "undefined" && window.history ? window.history.forward() : null),
-      commandPalette: () => {}
+      commandPalette: () => {},
+      rotateProxy: () => {
+        try {
+          const { defaultProxyManager } = require("../network-panel");
+          return defaultProxyManager.rotateProxy();
+        } catch {
+          return null;
+        }
+      }
     };
+    this.browserDelegate = Object.assign({}, defaultDelegate, options.browserDelegate || {});
 
     this.boundKeyHandler = this.onKeyDown.bind(this);
     this.setupActions();
@@ -43,7 +52,17 @@ class VimController {
     this.keymap.registerActionHandler("prev_tab", () => this.browserDelegate.prevTab());
     this.keymap.registerActionHandler("link_hints", () => this.hints.show());
     this.keymap.registerActionHandler("command_palette", () => this.browserDelegate.commandPalette());
-    this.keymap.registerActionHandler("rotate_proxy", () => (this.browserDelegate && this.browserDelegate.rotateProxy ? this.browserDelegate.rotateProxy() : null));
+    this.keymap.registerActionHandler("rotate_proxy", () => {
+      if (this.browserDelegate && typeof this.browserDelegate.rotateProxy === "function") {
+        return this.browserDelegate.rotateProxy();
+      }
+      try {
+        const { defaultProxyManager } = require("../network-panel");
+        return defaultProxyManager.rotateProxy();
+      } catch {
+        return null;
+      }
+    });
 
     this.keymap.onModeChange((newMode) => {
       this.updateHUD(newMode);
@@ -51,7 +70,7 @@ class VimController {
   }
 
   setupHUD() {
-    if (typeof document === "undefined") return;
+    if (typeof document === "undefined" || !document.body) return;
 
     this.hudElement = document.createElement("div");
     this.hudElement.id = "dev-vim-hud";

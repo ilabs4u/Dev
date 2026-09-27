@@ -41,12 +41,24 @@ class LocalhostScanner {
     const timeoutId = controller ? setTimeout(() => controller.abort(), this.probeTimeoutMs) : null;
 
     try {
-      const response = await this.fetchFn(url, {
-        method: "GET",
-        mode: "no-cors",
-        signal: controller ? controller.signal : undefined,
-        headers: { "Accept": "text/html,application/json,*/*" }
-      });
+      let response;
+      try {
+        response = await this.fetchFn(url, {
+          method: "GET",
+          signal: controller ? controller.signal : undefined,
+          headers: { "Accept": "text/html,application/json,*/*" }
+        });
+      } catch (err) {
+        if (typeof window !== "undefined") {
+          response = await this.fetchFn(url, {
+            method: "GET",
+            mode: "no-cors",
+            signal: controller ? controller.signal : undefined
+          });
+        } else {
+          throw err;
+        }
+      }
 
       if (timeoutId) clearTimeout(timeoutId);
       const t1 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();

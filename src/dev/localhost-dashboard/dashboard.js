@@ -44,6 +44,20 @@ class DashboardUI {
         this.startScan();
       });
     }
+
+    if (this.grid) {
+      this.grid.addEventListener("click", (e) => {
+        const copyBtn = e.target.closest ? e.target.closest(".copy-url-btn") : null;
+        if (copyBtn) {
+          const url = copyBtn.getAttribute("data-url");
+          if (url && typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url);
+            copyBtn.textContent = "Copied!";
+            setTimeout(() => { copyBtn.textContent = "Copy URL"; }, 1500);
+          }
+        }
+      });
+    }
   }
 
   async startScan() {
@@ -116,7 +130,7 @@ class DashboardUI {
 
         <div class="service-actions">
           <a href="${s.url}" target="_blank" class="card-btn primary">Open Tab</a>
-          <button class="card-btn" onclick="navigator.clipboard.writeText('${s.url}')">Copy URL</button>
+          <button class="card-btn copy-url-btn" data-url="${escapeHtml(s.url)}">Copy URL</button>
         </div>
       </div>
     `).join("");

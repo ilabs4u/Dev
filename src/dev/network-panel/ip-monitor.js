@@ -9,6 +9,16 @@ const DEFAULT_IP_ENDPOINTS = [
   { url: "https://ifconfig.me/ip", parse: (text) => text.trim() }
 ];
 
+function isValidIP(ip) {
+  if (!ip || typeof ip !== "string") return false;
+  const trimmed = ip.trim();
+  // IPv4: 4 octets 0-255
+  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  // IPv6: standard, compressed, and loopback
+  const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|::1|::)$/;
+  return ipv4Regex.test(trimmed) || ipv6Regex.test(trimmed);
+}
+
 class IPMonitor {
   constructor(options = {}) {
     this.currentIP = options.initialIP || null;
@@ -19,6 +29,8 @@ class IPMonitor {
     this.fetchFn = options.fetchFn || (typeof fetch !== "undefined" ? fetch : null);
     this.endpoints = options.endpoints || DEFAULT_IP_ENDPOINTS;
     this.listeners = new Map();
+    this._requestId = 0;
+    this._activeAbortController = null;
   }
 
   on(event, callback) {
@@ -71,6 +83,16 @@ class IPMonitor {
       return null;
     }
 
+    const reqId = ++this._requestId;
+    if (this._activeAbortController) {
+      try {
+        this._activeAbortController.abort();
+      } catch {
+        // Ignore abort error
+      }
+      this._activeAbortController = null;
+    }
+
     this.status = "fetching";
     this.error = null;
     this.emit("statusChange", { status: this.status });
@@ -78,7 +100,10 @@ class IPMonitor {
     let detectedIP = null;
 
     for (const endpoint of this.endpoints) {
+      if (reqId !== this._requestId) break;
+
       const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      this._activeAbortController = controller;
       const timeoutId = controller ? setTimeout(() => controller.abort(), this.timeoutMs) : null;
 
       try {
@@ -104,20 +129,26 @@ class IPMonitor {
             data = response;
           }
 
-          detectedIP = endpoint.parse(data);
-          if (detectedIP && typeof detectedIP === "string" && detectedIP.length > 3) {
+          const rawParsed = endpoint.parse(data);
+          if (isValidIP(rawParsed)) {
+            detectedIP = rawParsed.trim();
             break;
           }
         }
-      } catch (err) {
+      } catch {
         if (timeoutId) clearTimeout(timeoutId);
         // Try next endpoint
       }
     }
 
+    if (reqId !== this._requestId) {
+      // Discard stale response
+      return this.currentIP;
+    }
+
     if (detectedIP) {
       const previousIP = this.currentIP;
-      this.currentIP = detectedIP.trim();
+      this.currentIP = detectedIP;
       this.lastChecked = Date.now();
       this.status = "ready";
       this.error = null;
@@ -144,5 +175,6 @@ class IPMonitor {
 
 module.exports = {
   DEFAULT_IP_ENDPOINTS,
-  IPMonitor
+  IPMonitor,
+  isValidIP
 };

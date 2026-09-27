@@ -33,8 +33,10 @@ const DEFAULT_CONFIGS = {
 
 const DEFAULT_BYPASS_LIST = [
   "localhost",
+  "*.localhost",
   "127.0.0.1",
   "::1",
+  "[::1]",
   "*.local"
 ];
 
@@ -129,20 +131,23 @@ class ProxyManager {
   }
 
   setTabProxy(tabId, modeOrConfig) {
+    const key = typeof tabId === "number" ? tabId : (Number(tabId) || tabId);
     if (!modeOrConfig || modeOrConfig === "reset") {
-      this.tabOverrides.delete(tabId);
+      this.tabOverrides.delete(key);
     } else {
-      this.tabOverrides.set(tabId, modeOrConfig);
+      this.tabOverrides.set(key, modeOrConfig);
     }
-    this.emit("tabOverrideChange", { tabId, override: modeOrConfig });
+    this.emit("tabOverrideChange", { tabId: key, override: modeOrConfig });
   }
 
   getTabProxy(tabId) {
-    return this.tabOverrides.get(tabId) || null;
+    const key = typeof tabId === "number" ? tabId : (Number(tabId) || tabId);
+    return this.tabOverrides.get(key) || null;
   }
 
   clearTabProxy(tabId) {
-    this.tabOverrides.delete(tabId);
+    const key = typeof tabId === "number" ? tabId : (Number(tabId) || tabId);
+    this.tabOverrides.delete(key);
   }
 
   setWorkspaceProxy(workspaceName, modeOrConfig) {
@@ -164,14 +169,27 @@ class ProxyManager {
   isBypassed(hostname) {
     if (!hostname) return false;
     const lower = hostname.toLowerCase();
+    // Normalize IPv6 bracketed hostnames (e.g. "[::1]" -> "::1")
+    const cleanHost = lower.replace(/^\[|\]$/g, "");
+
+    // RFC 6761: *.localhost and localhost always resolve to loopback
+    if (cleanHost === "localhost" || cleanHost.endsWith(".localhost")) {
+      return true;
+    }
+
+    // RFC 5735: IPv4 loopback 127.0.0.0/8 and IPv6 loopback ::1 / 0.0.0.0
+    if (cleanHost.startsWith("127.") || cleanHost === "::1" || cleanHost === "0.0.0.0") {
+      return true;
+    }
 
     for (const pattern of this.bypassList) {
+      const cleanPattern = pattern.toLowerCase().replace(/^\[|\]$/g, "");
       if (pattern.startsWith("*.")) {
         const root = pattern.slice(2).toLowerCase();
-        if (lower === root || lower.endsWith("." + root)) {
+        if (cleanHost === root || cleanHost.endsWith("." + root)) {
           return true;
         }
-      } else if (lower === pattern.toLowerCase()) {
+      } else if (cleanHost === cleanPattern || lower === pattern.toLowerCase()) {
         return true;
       }
     }
@@ -182,6 +200,9 @@ class ProxyManager {
     if (!spec) return this.getConfig(this.currentMode);
     if (typeof spec === "string") {
       return this.getConfig(spec);
+    }
+    if (typeof spec === "object" && (spec.type === "socks" || spec.type === "socks4") && spec.proxyDNS === undefined) {
+      return { ...spec, proxyDNS: true };
     }
     return spec;
   }
@@ -198,15 +219,19 @@ class ProxyManager {
     let hostname = "";
     try {
       if (urlStr) {
-        const parsed = new URL(urlStr);
+        const hasProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(urlStr);
+        const parsed = new URL(hasProtocol ? urlStr : `http://${urlStr}`);
         hostname = parsed.hostname;
       }
     } catch {
-      // In case of non-standard URL, leave hostname empty
+      const match = String(urlStr).match(/^(?:https?:\/\/)?([^\/:]+)/i);
+      if (match) hostname = match[1];
     }
 
+    const cleanHost = hostname ? hostname.toLowerCase().replace(/^\[|\]$/g, "") : "";
+
     // 1. Tor Onion addresses (.onion) - always route via Tor if enabled
-    if (this.forceTorOnion && hostname && hostname.toLowerCase().endsWith(".onion")) {
+    if (this.forceTorOnion && cleanHost && (cleanHost === "onion" || cleanHost.endsWith(".onion"))) {
       return [this.getConfig(PROXY_MODES.TOR)];
     }
 
@@ -217,15 +242,17 @@ class ProxyManager {
 
     // 3. Domain-specific rules
     if (hostname) {
-      const domainRule = this.domainRules.get(hostname.toLowerCase());
+      const domainRule = this.domainRules.get(hostname.toLowerCase()) || this.domainRules.get(cleanHost);
       if (domainRule) {
         return [this.resolveConfigFromSpec(domainRule)];
       }
     }
 
-    // 4. Per-tab override
+    // 4. Per-tab override (supports both number and string tab IDs)
     if (requestDetails && requestDetails.tabId !== undefined && requestDetails.tabId !== -1) {
-      const tabOverride = this.tabOverrides.get(requestDetails.tabId);
+      const tId = requestDetails.tabId;
+      const tabOverride = this.tabOverrides.get(tId) ||
+        this.tabOverrides.get(typeof tId === "number" ? String(tId) : Number(tId));
       if (tabOverride) {
         return [this.resolveConfigFromSpec(tabOverride)];
       }
@@ -248,6 +275,9 @@ class ProxyManager {
    * Registers this manager with Firefox / Gecko browser.proxy API
    */
   register(browserProxyApi) {
+    if (this.registeredWithBrowser) {
+      this.unregister();
+    }
     this.browserProxyApi = browserProxyApi;
     if (browserProxyApi && browserProxyApi.onRequest && typeof browserProxyApi.onRequest.addListener === "function") {
       this.proxyListener = (details) => this.handleProxyRequest(details);

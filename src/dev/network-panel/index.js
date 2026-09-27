@@ -4,7 +4,7 @@
  */
 
 const { ProxyManager, PROXY_MODES, DEFAULT_CONFIGS, DEFAULT_BYPASS_LIST } = require("./proxy-manager");
-const { IPMonitor, DEFAULT_IP_ENDPOINTS } = require("./ip-monitor");
+const { IPMonitor, DEFAULT_IP_ENDPOINTS, isValidIP } = require("./ip-monitor");
 const { NetworkToolbarWidget, MODE_METADATA } = require("./network-toolbar");
 const { NetworkPanelUI } = require("./network-panel");
 
@@ -18,6 +18,7 @@ module.exports = {
   DEFAULT_CONFIGS,
   DEFAULT_BYPASS_LIST,
   IPMonitor,
+  isValidIP,
   DEFAULT_IP_ENDPOINTS,
   NetworkToolbarWidget,
   MODE_METADATA,

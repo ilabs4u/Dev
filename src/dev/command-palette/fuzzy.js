@@ -7,6 +7,9 @@ function fuzzyMatch(pattern, text) {
   if (!pattern) {
     return { matches: true, score: 0, indices: [] };
   }
+  if (!text || typeof text !== "string") {
+    return { matches: false, score: 0, indices: [] };
+  }
 
   const pLower = pattern.toLowerCase();
   const tLower = text.toLowerCase();

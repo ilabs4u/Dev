@@ -193,6 +193,34 @@ function detectService(info) {
     };
   }
 
+  // Fallback port heuristics for opaque cross-origin or stripped-header responses
+  const PORT_HEURISTICS = {
+    3000: { framework: "Node / Next.js Server", category: "JavaScript", icon: "▲" },
+    3001: { framework: "Dev Server", category: "Web", icon: "🌐" },
+    4200: { framework: "Angular Dev Server", category: "JavaScript", icon: "🅰️" },
+    5000: { framework: "Flask / Express Server", category: "Backend", icon: "🌶️" },
+    5173: { framework: "Vite Dev Server", category: "JavaScript", icon: "⚡" },
+    5174: { framework: "Vite Dev Server", category: "JavaScript", icon: "⚡" },
+    4173: { framework: "Vite Preview Server", category: "JavaScript", icon: "⚡" },
+    8000: { framework: "Python / Django Server", category: "Python", icon: "🐍" },
+    8080: { framework: "HTTP Web Server", category: "Web", icon: "🌐" },
+    8501: { framework: "Streamlit App", category: "Python", icon: "🎈" },
+    7860: { framework: "Gradio App", category: "AI", icon: "🤗" },
+    11434: { framework: "Ollama AI API", category: "AI", icon: "🦙" },
+    1337: { framework: "Strapi CMS", category: "Node.js", icon: "🚀" },
+    9222: { framework: "Chrome DevTools Protocol", category: "DevTools", icon: "🔧" }
+  };
+
+  const portHeuristic = PORT_HEURISTICS[port];
+  if (portHeuristic) {
+    return {
+      framework: portHeuristic.framework,
+      category: portHeuristic.category,
+      icon: portHeuristic.icon,
+      title
+    };
+  }
+
   return {
     framework: "HTTP Service",
     category: "Web",

@@ -213,18 +213,35 @@ class CommandPalette {
     this.inputElement = this.overlayElement.querySelector(".dev-palette-input");
     this.resultsElement = this.overlayElement.querySelector(".dev-palette-results");
 
-    this.inputElement.addEventListener("input", (e) => {
-      this.setQuery(e.target.value);
-    });
+    if (this.inputElement) {
+      this.inputElement.addEventListener("input", (e) => {
+        this.setQuery(e.target.value);
+      });
 
-    this.inputElement.addEventListener("keydown", (e) => {
-      this.handleKeyDown(e);
-    });
+      this.inputElement.addEventListener("keydown", (e) => {
+        this.handleKeyDown(e);
+      });
+    }
+
+    if (this.resultsElement) {
+      this.resultsElement.addEventListener("click", (e) => {
+        const itemEl = e.target.closest ? e.target.closest(".dev-palette-item") : null;
+        if (itemEl) {
+          const idx = parseInt(itemEl.getAttribute("data-index"), 10);
+          if (!isNaN(idx)) {
+            this.selectedIndex = idx;
+            this.executeSelected();
+          }
+        }
+      });
+    }
 
     const backdrop = this.overlayElement.querySelector(".dev-palette-backdrop");
-    backdrop.addEventListener("click", () => {
-      this.close();
-    });
+    if (backdrop) {
+      backdrop.addEventListener("click", () => {
+        this.close();
+      });
+    }
   }
 
   open() {
@@ -417,6 +434,7 @@ function escapeHtml(str) {
 }
 
 function highlightIndices(text, indices) {
+  if (!text) return "";
   if (!indices || indices.length === 0) {
     return escapeHtml(text);
   }

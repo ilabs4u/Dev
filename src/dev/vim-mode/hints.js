@@ -25,10 +25,22 @@ class LinkHints {
       return result;
     }
 
-    // 2-character hint codes
+    // 2-character hint codes (up to 14 * 14 = 196)
+    if (count <= base * base) {
+      for (let i = 0; i < base && result.length < count; i++) {
+        for (let j = 0; j < base && result.length < count; j++) {
+          result.push(chars[i] + chars[j]);
+        }
+      }
+      return result;
+    }
+
+    // 3-character hint codes (up to 14^3 = 2,744)
     for (let i = 0; i < base && result.length < count; i++) {
       for (let j = 0; j < base && result.length < count; j++) {
-        result.push(chars[i] + chars[j]);
+        for (let k = 0; k < base && result.length < count; k++) {
+          result.push(chars[i] + chars[j] + chars[k]);
+        }
       }
     }
     return result;
@@ -93,7 +105,7 @@ class LinkHints {
 
       const badge = document.createElement("div");
       badge.className = "dev-link-hint-badge";
-      badge.textContent = code.toUpperCase();
+      badge.textContent = (code || "").toUpperCase();
       badge.style.cssText = `
         position: absolute;
         top: ${Math.max(0, rect.top)}px;
