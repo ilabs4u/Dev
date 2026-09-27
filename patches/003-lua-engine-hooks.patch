@@ -1,0 +1,38 @@
+diff --git a/browser/components/moz.build b/browser/components/moz.build
+--- a/browser/components/moz.build
++++ b/browser/components/moz.build
+@@ -35,6 +35,16 @@ DIRS += [
+     "shell",
+     "tabbrowser",
+     "urlbar",
++    "../../../src/dev/lua-engine",
+ ]
+ 
++SOURCES += [
++    "../../../src/dev/lua-engine/lua-engine.cpp",
++]
++
++LOCAL_INCLUDES += [
++    "../../../src/dev/lua-engine/vendor",
++]
++
++OS_LIBS += ["luajit-5.1"]
+diff --git a/browser/components/nsBrowserGlue.sys.mjs b/browser/components/nsBrowserGlue.sys.mjs
+--- a/browser/components/nsBrowserGlue.sys.mjs
++++ b/browser/components/nsBrowserGlue.sys.mjs
+@@ -1025,6 +1025,16 @@ BrowserGlue.prototype = {
+       this._scheduleStartupIdleTasks();
+       break;
+     case "browser-delayed-startup-finished":
++      // Dev Browser: Initialize LuaJIT Engine and load user configuration (~/.config/dev/init.lua)
++      try {
++        const { DevLua } = ChromeUtils.importESModule(
++          "resource:///modules/dev/lua-bridge.sys.mjs"
++        );
++        DevLua.init();
++      } catch (ex) {
++        console.error("Failed to initialize Dev Browser Lua engine:", ex);
++      }
+       this._onFirstWindowLoaded(subject);
+       Services.obs.removeObserver(this, "browser-delayed-startup-finished");
+       break;
