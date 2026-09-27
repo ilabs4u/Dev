@@ -49,6 +49,7 @@ class KeymapManager {
     this.set("n", "<leader>t", "toggle_terminal");
     this.set("n", "<leader>ip", "rotate_proxy");
     this.set("n", "<leader>ai", "toggle_ai_sidebar");
+    this.set("n", "<leader>at", "toggle_agent_tree");
   }
 
   setLeader(key) {

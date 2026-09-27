@@ -28,8 +28,17 @@ class VimController {
         } catch {
           return null;
         }
+      },
+      toggleAgentTree: () => {
+        try {
+          const { defaultOverlay } = require("../agent-tree");
+          return defaultOverlay.toggle();
+        } catch {
+          return null;
+        }
       }
     };
+    this.agentTreeOverlay = options.agentTreeOverlay || null;
     this.browserDelegate = Object.assign({}, defaultDelegate, options.browserDelegate || {});
 
     this.boundKeyHandler = this.onKeyDown.bind(this);
@@ -59,6 +68,20 @@ class VimController {
       try {
         const { defaultProxyManager } = require("../network-panel");
         return defaultProxyManager.rotateProxy();
+      } catch {
+        return null;
+      }
+    });
+    this.keymap.registerActionHandler("toggle_agent_tree", () => {
+      if (this.agentTreeOverlay && typeof this.agentTreeOverlay.toggle === "function") {
+        return this.agentTreeOverlay.toggle();
+      }
+      if (this.browserDelegate && typeof this.browserDelegate.toggleAgentTree === "function") {
+        return this.browserDelegate.toggleAgentTree();
+      }
+      try {
+        const { defaultOverlay } = require("../agent-tree");
+        return defaultOverlay.toggle();
       } catch {
         return null;
       }

@@ -1,0 +1,65 @@
+/* Dev Browser - Agent Tree Visual Overlay Styles */
+
+#dev-agent-tree-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2147483645;
+  overflow: visible;
+  transition: opacity 0.15s ease-in-out;
+}
+
+#dev-agent-tree-overlay.dev-hidden {
+  display: none !important;
+}
+
+.dev-agent-tree-badge {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #030712;
+  background: #38bdf8;
+  border: 1px solid #0284c7;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.25) inset;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  z-index: 2147483646;
+  transform: translate(-3px, -3px);
+  transition: transform 0.1s ease, background-color 0.1s ease, box-shadow 0.1s ease;
+}
+
+.dev-agent-tree-badge:hover {
+  background: #facc15;
+  color: #000;
+  border-color: #ca8a04;
+  transform: translate(-3px, -3px) scale(1.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.dev-agent-tree-badge.in-shadow {
+  background: #c084fc;
+  border-color: #9333ea;
+  color: #1e1b4b;
+}
+
+.dev-agent-tree-badge.in-shadow:hover {
+  background: #e879f9;
+  border-color: #c026d3;
+  color: #000;
+}

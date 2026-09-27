@@ -175,10 +175,14 @@ class McpProtocolHandler {
 
     try {
       const result = await tool.handler(args, this.context, this.permissions);
-      return {
+      const res = {
         content: result.content || [{ type: "text", text: JSON.stringify(result.data || "success") }],
         isError: result.isError !== undefined ? !!result.isError : false
       };
+      if (result.data !== undefined) {
+        res.data = result.data;
+      }
+      return res;
     } catch (err) {
       return {
         content: [{ type: "text", text: err.message }],

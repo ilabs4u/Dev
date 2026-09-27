@@ -3,6 +3,8 @@
  * Manages tab state, navigation, DOM interaction, DevTools, and bridge to Gecko.
  */
 
+const { distill, generateLabel } = require("../agent-tree");
+
 class BrowserContext {
   constructor(options = {}) {
     this.browserAdapter = options.browserAdapter || (typeof browser !== "undefined" ? browser : null);
@@ -351,13 +353,7 @@ class BrowserContext {
   // --- INTERACTION & AGENT TREE ---
 
   _generateLabel(index) {
-    let label = "";
-    let n = index;
-    while (n >= 0) {
-      label = String.fromCharCode(65 + (n % 26)) + label;
-      n = Math.floor(n / 26) - 1;
-    }
-    return label;
+    return generateLabel(index);
   }
 
   async getInteractiveElements(tabId = null, forceRefresh = false) {
@@ -368,118 +364,8 @@ class BrowserContext {
       return tab.interactiveElements;
     }
 
-    const html = tab.content || "";
-    const elements = [];
-
-    // Parse interactive tags: button, a, input, textarea, select
-    const buttonRegex = /<button[^>]*>(.*?)<\/button>/gi;
-    const linkRegex = /<a\s+[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/gi;
-    const inputRegex = /<input\s+([^>]*)\/?>/gi;
-    const textareaRegex = /<textarea\s+([^>]*)>(.*?)<\/textarea>/gi;
-    const selectRegex = /<select\s+([^>]*)>([\s\S]*?)<\/select>/gi;
-
-    let match;
-    let idx = 0;
-
-    while ((match = buttonRegex.exec(html)) !== null) {
-      const fullTag = match[0];
-      const text = match[1].replace(/<[^>]+>/g, "").trim() || "Button";
-      const idMatch = fullTag.match(/\bid=["']([^"']+)["']/i);
-      const id = idMatch ? idMatch[1] : null;
-      const selector = id ? `#${id}` : `button:nth-of-type(${elements.length + 1})`;
-      elements.push({
-        label: this._generateLabel(idx++),
-        tag: "button",
-        role: "button",
-        text,
-        id,
-        selector,
-        value: text
-      });
-    }
-
-    while ((match = linkRegex.exec(html)) !== null) {
-      const fullTag = match[0];
-      const href = match[1];
-      const text = match[2].replace(/<[^>]+>/g, "").trim() || href;
-      const idMatch = fullTag.match(/\bid=["']([^"']+)["']/i);
-      const id = idMatch ? idMatch[1] : null;
-      const selector = id ? `#${id}` : `a[href="${href}"]`;
-      elements.push({
-        label: this._generateLabel(idx++),
-        tag: "a",
-        role: "link",
-        text,
-        href,
-        id,
-        selector
-      });
-    }
-
-    while ((match = inputRegex.exec(html)) !== null) {
-      const attrs = match[1];
-      const typeMatch = attrs.match(/\btype=["']([^"']+)["']/i);
-      const idMatch = attrs.match(/\bid=["']([^"']+)["']/i);
-      const nameMatch = attrs.match(/\bname=["']([^"']+)["']/i);
-      const valMatch = attrs.match(/\bvalue=["']([^"']+)["']/i);
-      const placeholderMatch = attrs.match(/\bplaceholder=["']([^"']+)["']/i);
-
-      const type = typeMatch ? typeMatch[1] : "text";
-      const id = idMatch ? idMatch[1] : null;
-      const name = nameMatch ? nameMatch[1] : null;
-      const selector = id ? `#${id}` : (name ? `input[name="${name}"]` : `input:nth-of-type(${elements.length + 1})`);
-
-      elements.push({
-        label: this._generateLabel(idx++),
-        tag: "input",
-        type,
-        role: type === "submit" || type === "button" ? "button" : "textbox",
-        id,
-        name,
-        placeholder: placeholderMatch ? placeholderMatch[1] : "",
-        selector,
-        value: valMatch ? valMatch[1] : ""
-      });
-    }
-
-    while ((match = textareaRegex.exec(html)) !== null) {
-      const attrs = match[1];
-      const val = match[2].trim();
-      const idMatch = attrs.match(/\bid=["']([^"']+)["']/i);
-      const nameMatch = attrs.match(/\bname=["']([^"']+)["']/i);
-      const id = idMatch ? idMatch[1] : null;
-      const name = nameMatch ? nameMatch[1] : null;
-      const selector = id ? `#${id}` : (name ? `textarea[name="${name}"]` : `textarea`);
-
-      elements.push({
-        label: this._generateLabel(idx++),
-        tag: "textarea",
-        role: "textbox",
-        id,
-        name,
-        selector,
-        value: val
-      });
-    }
-
-    while ((match = selectRegex.exec(html)) !== null) {
-      const attrs = match[1];
-      const idMatch = attrs.match(/\bid=["']([^"']+)["']/i);
-      const nameMatch = attrs.match(/\bname=["']([^"']+)["']/i);
-      const id = idMatch ? idMatch[1] : null;
-      const name = nameMatch ? nameMatch[1] : null;
-      const selector = id ? `#${id}` : (name ? `select[name="${name}"]` : `select`);
-
-      elements.push({
-        label: this._generateLabel(idx++),
-        tag: "select",
-        role: "combobox",
-        id,
-        name,
-        selector,
-        value: ""
-      });
-    }
+    const target = tab.document || tab.content || "";
+    const elements = distill(target);
 
     tab.interactiveElements = elements;
     return elements;
@@ -502,6 +388,14 @@ class BrowserContext {
       }
     } else if (selector) {
       target = tab.interactiveElements.find(e => e.selector === selector || (e.id && `#${e.id}` === selector));
+    }
+
+    if (target && target.element && typeof target.element.click === "function") {
+      try {
+        target.element.click();
+      } catch {
+        // Continue
+      }
     }
 
     const clickedDesc = target ? (target.text || target.selector || target.label) : (selector || label || "unknown");
@@ -535,6 +429,17 @@ class BrowserContext {
 
     if (target) {
       target.value = String(text);
+      if (target.element) {
+        try {
+          target.element.value = String(text);
+          if (typeof target.element.dispatchEvent === "function" && typeof Event !== "undefined") {
+            target.element.dispatchEvent(new Event("input", { bubbles: true }));
+            target.element.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        } catch {
+          // Continue
+        }
+      }
     }
 
     const filledDesc = target ? (target.selector || target.name || target.label) : (selector || label || "element");

@@ -87,25 +87,26 @@ Each task is self-contained with enough context to implement independently.
 
 ---
 
-## 🟡 Phase 2B — Agent Tree (Distilled DOM) (Next)
+## 🟢 Phase 2B — Agent Tree (Distilled DOM) (Completed)
 
 ### Task 2B.1: DOM Distillation Engine
 - **Goal:** Walk DOM, identify interactive elements, assign labels (A, B, C... AA, AB...), extract semantics in <100ms.
 - **Files:** `src/dev/agent-tree/distiller.js`
-- **Status:** ⬜ Not started
+- **Status:** ✅ Completed
 
 ### Task 2B.2: Visual Overlay
 - **Goal:** Persistent toggleable overlay showing Agent Tree labels over interactive page elements.
 - **Files:** `src/dev/agent-tree/overlay.js`, `overlay.css`
-- **Status:** ⬜ Not started
+- **Status:** ✅ Completed
 
-### Task 2B.3: Wire Agent Tree into MCP
-- **Goal:** Deepen `get_interactive_elements`, `click`, and `fill` tools with distiller output.
-- **Status:** ⬜ Not started
+### Task 2B.3: Wire Agent Tree into MCP & Vim Mode
+- **Goal:** Deepen `get_interactive_elements`, `click`, and `fill` tools with distiller output; wire `<leader>at` shortcut.
+- **Files:** `src/dev/mcp-server/browser-context.js`, `src/dev/vim-mode/vim-controller.js`, `src/dev/lua-engine/keymap.js`
+- **Status:** ✅ Completed (43 new tests passing; 157 total passing)
 
 ---
 
-## 🟡 Phase 2C — AI Sidebar (BYOM)
+## 🟡 Phase 2C — AI Sidebar (BYOM) (Next)
 - Providers (Ollama, OpenAI, Claude, LM Studio), Chat UI, and Lua AI API.
 - **Status:** ⬜ Not started
 
