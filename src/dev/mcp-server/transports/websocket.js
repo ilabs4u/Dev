@@ -95,6 +95,8 @@ class WebSocketTransport {
     const client = {
       socket,
       buffer: Buffer.alloc(0),
+      fragments: [],
+      fragmentOpcode: null,
       alive: true
     };
 
@@ -120,6 +122,7 @@ class WebSocketTransport {
       const byte0 = client.buffer[0];
       const byte1 = client.buffer[1];
 
+      const isFin = (byte0 & 0x80) !== 0;
       const opcode = byte0 & 0x0f;
       const isMasked = (byte1 & 0x80) !== 0;
       let payloadLen = byte1 & 0x7f;
@@ -137,6 +140,15 @@ class WebSocketTransport {
         const low = client.buffer.readUInt32BE(6);
         payloadLen = high * 4294967296 + low;
         headerLen = 10;
+      }
+
+      // Max frame limit (16MB) to prevent DoS memory exhaustion
+      if (payloadLen > 16 * 1024 * 1024) {
+        // Send close code 1009 (Message Too Big)
+        this.sendFrame(client.socket, Buffer.from([0x03, 0xf1]), 0x08);
+        client.socket.destroy();
+        this.clients.delete(client);
+        return;
       }
 
       const maskLen = isMasked ? 4 : 0;
@@ -163,18 +175,39 @@ class WebSocketTransport {
 
       // Handle frame opcode
       if (opcode === 0x08) {
-        // Close frame
-        this.sendFrame(client.socket, Buffer.alloc(0), 0x08);
+        // Close frame - echo status code if present
+        const codeBuf = payload.length >= 2 ? payload.slice(0, 2) : Buffer.from([0x03, 0xe8]);
+        this.sendFrame(client.socket, codeBuf, 0x08);
         client.socket.end();
         this.clients.delete(client);
         return;
       } else if (opcode === 0x09) {
         // Ping frame -> respond Pong
         this.sendFrame(client.socket, payload, 0x0a);
+      } else if (opcode === 0x0a) {
+        // Pong frame
+        continue;
       } else if (opcode === 0x01 || opcode === 0x02) {
-        // Text frame or binary frame containing JSON-RPC
-        const messageText = payload.toString("utf8");
-        this.processClientMessage(client, messageText);
+        // Text or binary frame
+        if (isFin) {
+          const messageText = payload.toString("utf8");
+          this.processClientMessage(client, messageText);
+        } else {
+          client.fragmentOpcode = opcode;
+          client.fragments = [payload];
+        }
+      } else if (opcode === 0x00) {
+        // Continuation frame
+        if (client.fragmentOpcode !== null) {
+          client.fragments.push(payload);
+          if (isFin) {
+            const fullPayload = Buffer.concat(client.fragments);
+            client.fragments = [];
+            client.fragmentOpcode = null;
+            const messageText = fullPayload.toString("utf8");
+            this.processClientMessage(client, messageText);
+          }
+        }
       }
     }
   }
@@ -246,6 +279,13 @@ class WebSocketTransport {
 
     return new Promise((resolve) => {
       if (this.server) {
+        if (typeof this.server.closeAllConnections === "function") {
+          try {
+            this.server.closeAllConnections();
+          } catch {
+            // Ignore
+          }
+        }
         this.server.close(() => {
           this.server = null;
           resolve();

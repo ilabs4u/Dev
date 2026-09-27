@@ -39,7 +39,7 @@ class BrowserContext {
       return this.getActiveTab();
     }
     const numId = Number(tabId);
-    return this.tabs.find(t => t.id === numId || t.id === tabId) || this.getActiveTab();
+    return this.tabs.find(t => t.id === numId || t.id === tabId) || null;
   }
 
   async listTabs() {
@@ -110,7 +110,19 @@ class BrowserContext {
     const wasActive = this.tabs[index].active;
     this.tabs.splice(index, 1);
 
-    if (wasActive && this.tabs.length > 0) {
+    if (this.tabs.length === 0) {
+      this.tabs.push({
+        id: this.nextTabId++,
+        url: "about:blank",
+        title: "New Tab",
+        active: true,
+        history: ["about:blank"],
+        historyIndex: 0,
+        content: "<html><head><title>New Tab</title></head><body></body></html>",
+        consoleLogs: [],
+        interactiveElements: []
+      });
+    } else if (wasActive) {
       this.tabs[Math.max(0, index - 1)].active = true;
     }
 
@@ -148,7 +160,7 @@ class BrowserContext {
     }
 
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No active tab available");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No active tab available");
 
     if (this.browserAdapter && this.browserAdapter.tabs && this.browserAdapter.tabs.update) {
       try {
@@ -174,7 +186,7 @@ class BrowserContext {
 
   async goBack(tabId = null) {
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     if (tab.historyIndex > 0) {
       tab.historyIndex--;
@@ -186,7 +198,7 @@ class BrowserContext {
 
   async goForward(tabId = null) {
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     if (tab.historyIndex < tab.history.length - 1) {
       tab.historyIndex++;
@@ -198,7 +210,7 @@ class BrowserContext {
 
   async reload(tabId = null, bypassCache = false) {
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     if (this.browserAdapter && this.browserAdapter.tabs && this.browserAdapter.tabs.reload) {
       try {
@@ -212,7 +224,7 @@ class BrowserContext {
 
   async getCurrentUrl(tabId = null) {
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
     return { url: tab.url, title: tab.title, tabId: tab.id };
   }
 
@@ -228,7 +240,7 @@ class BrowserContext {
 
   async getPageContent(tabId = null, format = "text") {
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     let content = tab.content || "";
     if (format === "text") {
@@ -251,7 +263,7 @@ class BrowserContext {
 
   async captureScreenshot(tabId = null, format = "png") {
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     if (this.browserAdapter && this.browserAdapter.tabs && this.browserAdapter.tabs.captureVisibleTab) {
       try {
@@ -276,26 +288,40 @@ class BrowserContext {
   async evaluateJs(script, tabId = null) {
     if (!script) throw new Error("Missing script to evaluate");
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
-    // Execute in sandboxed Function evaluation
+    if (typeof require !== "undefined") {
+      try {
+        const vm = require("node:vm");
+        const sandbox = {
+          document: { title: tab.title, url: tab.url },
+          window: {},
+          tab: { id: tab.id, url: tab.url, title: tab.title },
+          console: {
+            log: (...args) => this.addConsoleLog({ level: "log", message: args.join(" ") }, tab.id),
+            warn: (...args) => this.addConsoleLog({ level: "warn", message: args.join(" ") }, tab.id),
+            error: (...args) => this.addConsoleLog({ level: "error", message: args.join(" ") }, tab.id)
+          }
+        };
+        const res = vm.runInNewContext(script, sandbox, { timeout: 2000 });
+        return { result: res !== undefined ? res : null };
+      } catch (err) {
+        throw new Error(`JavaScript evaluation error: ${err.message}`);
+      }
+    }
+
+    // In-browser fallback
     try {
       const sandboxFn = new Function("document", "window", "tab", `
         return (function() {
-          ${script.startsWith("return ") ? script : "return " + script};
+          ${script.startsWith("return ") ? script : "return (" + script + ")"};
         })();
       `);
       const mockDoc = { title: tab.title, url: tab.url };
       const res = sandboxFn(mockDoc, {}, tab);
       return { result: res !== undefined ? res : null };
-    } catch {
-      // Direct eval fallback for statements
-      try {
-        const res = eval(script);
-        return { result: res !== undefined ? res : null };
-      } catch (err) {
-        throw new Error(`JavaScript evaluation error: ${err.message}`);
-      }
+    } catch (err) {
+      throw new Error(`JavaScript evaluation error: ${err.message}`);
     }
   }
 
@@ -315,6 +341,9 @@ class BrowserContext {
 
   async getConsoleLogs(limit = 100, tabId = null) {
     const tab = this.getTab(tabId);
+    if (tabId !== null && tabId !== undefined && !tab) {
+      throw new Error(`Tab not found: ${tabId}`);
+    }
     const logs = tab ? tab.consoleLogs : this.consoleLogsBuffer;
     return logs.slice(-Math.max(1, limit));
   }
@@ -333,7 +362,7 @@ class BrowserContext {
 
   async getInteractiveElements(tabId = null, forceRefresh = false) {
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     if (tab.interactiveElements && tab.interactiveElements.length > 0 && !forceRefresh) {
       return tab.interactiveElements;
@@ -347,6 +376,7 @@ class BrowserContext {
     const linkRegex = /<a\s+[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/gi;
     const inputRegex = /<input\s+([^>]*)\/?>/gi;
     const textareaRegex = /<textarea\s+([^>]*)>(.*?)<\/textarea>/gi;
+    const selectRegex = /<select\s+([^>]*)>([\s\S]*?)<\/select>/gi;
 
     let match;
     let idx = 0;
@@ -432,14 +462,21 @@ class BrowserContext {
       });
     }
 
-    // Default fallback if no interactive elements found in simple HTML
-    if (elements.length === 0) {
+    while ((match = selectRegex.exec(html)) !== null) {
+      const attrs = match[1];
+      const idMatch = attrs.match(/\bid=["']([^"']+)["']/i);
+      const nameMatch = attrs.match(/\bname=["']([^"']+)["']/i);
+      const id = idMatch ? idMatch[1] : null;
+      const name = nameMatch ? nameMatch[1] : null;
+      const selector = id ? `#${id}` : (name ? `select[name="${name}"]` : `select`);
+
       elements.push({
-        label: "A",
-        tag: "button",
-        role: "button",
-        text: "Submit",
-        selector: "#submit-btn",
+        label: this._generateLabel(idx++),
+        tag: "select",
+        role: "combobox",
+        id,
+        name,
+        selector,
         value: ""
       });
     }
@@ -451,7 +488,7 @@ class BrowserContext {
   async clickElement(options = {}) {
     const { selector, label, tabId } = options;
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     if (!tab.interactiveElements || tab.interactiveElements.length === 0) {
       await this.getInteractiveElements(tab.id);
@@ -460,6 +497,9 @@ class BrowserContext {
     let target = null;
     if (label) {
       target = tab.interactiveElements.find(e => e.label.toUpperCase() === label.toUpperCase());
+      if (!target) {
+        throw new Error(`Element not found with Agent Tree label: ${label}`);
+      }
     } else if (selector) {
       target = tab.interactiveElements.find(e => e.selector === selector || (e.id && `#${e.id}` === selector));
     }
@@ -477,7 +517,7 @@ class BrowserContext {
     if (text === undefined || text === null) throw new Error("Missing required argument: text");
 
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     if (!tab.interactiveElements || tab.interactiveElements.length === 0) {
       await this.getInteractiveElements(tab.id);
@@ -486,6 +526,9 @@ class BrowserContext {
     let target = null;
     if (label) {
       target = tab.interactiveElements.find(e => e.label.toUpperCase() === label.toUpperCase());
+      if (!target) {
+        throw new Error(`Element not found with Agent Tree label: ${label}`);
+      }
     } else if (selector) {
       target = tab.interactiveElements.find(e => e.selector === selector || (e.id && `#${e.id}` === selector));
     }
@@ -509,7 +552,7 @@ class BrowserContext {
     if (!selector) throw new Error("Missing required argument: selector");
 
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     // Standard computed styles simulation
     const mockStyles = {
@@ -541,7 +584,7 @@ class BrowserContext {
 
   async getPerformance(tabId = null) {
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     return {
       url: tab.url,
@@ -563,7 +606,7 @@ class BrowserContext {
 
   async getAccessibilityTree(tabId = null) {
     const tab = this.getTab(tabId);
-    if (!tab) throw new Error("No tab found");
+    if (!tab) throw new Error(tabId !== null && tabId !== undefined ? `Tab not found: ${tabId}` : "No tab found");
 
     if (!tab.interactiveElements || tab.interactiveElements.length === 0) {
       await this.getInteractiveElements(tab.id);

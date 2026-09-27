@@ -49,11 +49,24 @@ class PermissionManager {
     const list = this.permissions.confirm_before || [];
     for (const pattern of list) {
       if (!pattern) continue;
-      const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-      const regex = new RegExp(`^${escaped}$`, "i");
+      // Convert glob pattern to regex: escape regex specials, map * to .*, map ? to .
+      const escaped = pattern
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\*/g, ".*")
+        .replace(/\?/g, ".");
+      let regex;
+      try {
+        regex = new RegExp(`^${escaped}$`, "i");
+      } catch {
+        continue;
+      }
+
       if (regex.test(toolName)) return true;
       if (args.selector && regex.test(args.selector)) return true;
       if (args.action && regex.test(args.action)) return true;
+      if (args.url && regex.test(args.url)) return true;
+      if (args.text && regex.test(String(args.text))) return true;
+      if (args.script && regex.test(args.script)) return true;
     }
     return false;
   }
@@ -109,7 +122,7 @@ class PermissionManager {
           approved = false;
         }
 
-        this.history.push({
+        this._recordHistory({
           tool: toolName,
           arguments: args,
           approved: !!approved,
@@ -123,7 +136,7 @@ class PermissionManager {
         return true;
       }
 
-      this.history.push({
+      this._recordHistory({
         tool: toolName,
         arguments: args,
         approved: false,
@@ -138,7 +151,7 @@ class PermissionManager {
       throw new Error(`Permission denied: '${toolName}' requires user approval or agent.permissions.${configKey} = true`);
     }
 
-    this.history.push({
+    this._recordHistory({
       tool: toolName,
       arguments: args,
       approved: true,
@@ -146,6 +159,13 @@ class PermissionManager {
       timestamp: Date.now()
     });
     return true;
+  }
+
+  _recordHistory(entry) {
+    this.history.push(entry);
+    if (this.history.length > 500) {
+      this.history.shift();
+    }
   }
 }
 

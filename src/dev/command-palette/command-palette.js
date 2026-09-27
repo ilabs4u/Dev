@@ -3,8 +3,24 @@
  * Ctrl+K fuzzy-search command bar for browser actions, open tabs, and Lua commands.
  */
 
-const { fuzzyFilter } = require("./fuzzy");
-const { escapeHtml } = require("../shared/utils");
+let fuzzyFilter;
+let escapeHtml;
+
+if (typeof require !== "undefined") {
+  try {
+    fuzzyFilter = require("./fuzzy").fuzzyFilter;
+  } catch {
+    fuzzyFilter = (q, items) => items.map(item => ({ item, score: 1, indices: [] }));
+  }
+  try {
+    escapeHtml = require("../shared/utils").escapeHtml;
+  } catch {
+    escapeHtml = (str) => String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+} else {
+  fuzzyFilter = (typeof window !== "undefined" && window.fuzzyFilter) || ((q, items) => items.map(item => ({ item, score: 1, indices: [] })));
+  escapeHtml = (str) => String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 
 class CommandPalette {
   constructor(options = {}) {

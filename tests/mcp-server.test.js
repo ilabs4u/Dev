@@ -767,4 +767,317 @@ describe("Phase 2A: MCP Server Core & Tools", () => {
       assert.equal(server.running, false);
     });
   });
+
+  // ==========================================
+  // 12. Robustness & Edge Cases
+  // ==========================================
+  describe("Robustness & Protocol Hardening", () => {
+    it("handles tools/call with arguments: null without crashing", async () => {
+      const res = await handler.handleMessage({
+        jsonrpc: "2.0",
+        id: 90,
+        method: "tools/call",
+        params: { name: "navigate_to", arguments: null }
+      });
+      assert.equal(res.id, 90);
+      assert.equal(res.result.isError, true);
+      assert.ok(res.result.content[0].text.includes("Missing required argument 'url'"));
+    });
+
+    it("supports requests with id: null according to JSON-RPC 2.0", async () => {
+      const res = await handler.handleMessage({
+        jsonrpc: "2.0",
+        id: null,
+        method: "ping"
+      });
+      assert.equal(res.id, null);
+      assert.equal(res.jsonrpc, "2.0");
+      assert.deepEqual(res.result, {});
+    });
+
+    it("StdioTransport handles Content-Length framing without trailing newline", async () => {
+      class MockReadable extends EventEmitter {
+        setEncoding() {}
+      }
+      class MockWritable extends EventEmitter {
+        constructor() {
+          super();
+          this.chunks = [];
+        }
+        write(chunk) {
+          this.chunks.push(chunk);
+        }
+      }
+
+      const mockStdin = new MockReadable();
+      const mockStdout = new MockWritable();
+
+      const stdio = new StdioTransport({
+        handler,
+        stdin: mockStdin,
+        stdout: mockStdout
+      });
+      stdio.start();
+
+      const pingBody = JSON.stringify({ jsonrpc: "2.0", id: "cl-1", method: "ping" });
+      const rawPayload = `Content-Length: ${Buffer.byteLength(pingBody)}\r\n\r\n${pingBody}`;
+
+      mockStdin.emit("data", rawPayload);
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      assert.ok(mockStdout.chunks.length > 0, "Response must be sent even without trailing newline");
+      const res = JSON.parse(mockStdout.chunks[0].trim());
+      assert.equal(res.id, "cl-1");
+
+      stdio.stop();
+    });
+
+    it("StdioTransport handles pretty-printed multiline JSON messages", async () => {
+      class MockReadable extends EventEmitter {
+        setEncoding() {}
+      }
+      class MockWritable extends EventEmitter {
+        constructor() {
+          super();
+          this.chunks = [];
+        }
+        write(chunk) {
+          this.chunks.push(chunk);
+        }
+      }
+
+      const mockStdin = new MockReadable();
+      const mockStdout = new MockWritable();
+
+      const stdio = new StdioTransport({
+        handler,
+        stdin: mockStdin,
+        stdout: mockStdout
+      });
+      stdio.start();
+
+      const multiline = JSON.stringify({
+        jsonrpc: "2.0",
+        id: "multi-1",
+        method: "ping"
+      }, null, 2) + "\n";
+
+      mockStdin.emit("data", multiline);
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      assert.equal(mockStdout.chunks.length, 1);
+      const res = JSON.parse(mockStdout.chunks[0].trim());
+      assert.equal(res.id, "multi-1");
+
+      stdio.stop();
+    });
+
+    it("StdioTransport flushes and executes pending message on stdin end event", async () => {
+      class MockReadable extends EventEmitter {
+        setEncoding() {}
+      }
+      class MockWritable extends EventEmitter {
+        constructor() {
+          super();
+          this.chunks = [];
+        }
+        write(chunk) {
+          this.chunks.push(chunk);
+        }
+      }
+
+      const mockStdin = new MockReadable();
+      const mockStdout = new MockWritable();
+
+      const stdio = new StdioTransport({
+        handler,
+        stdin: mockStdin,
+        stdout: mockStdout
+      });
+      stdio.start();
+
+      mockStdin.emit("data", JSON.stringify({ jsonrpc: "2.0", id: "eof-1", method: "ping" }));
+      mockStdin.emit("end");
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      assert.ok(mockStdout.chunks.length > 0);
+      const res = JSON.parse(mockStdout.chunks[0].trim());
+      assert.equal(res.id, "eof-1");
+
+      stdio.stop();
+    });
+
+    it("navigate_to returns isError: true when targeting non-existent tabId", async () => {
+      const res = await handler.handleMessage({
+        jsonrpc: "2.0",
+        id: 91,
+        method: "tools/call",
+        params: {
+          name: "navigate_to",
+          arguments: { url: "https://isolated.org", tabId: 99999 }
+        }
+      });
+      assert.equal(res.result.isError, true);
+      assert.ok(res.result.content[0].text.includes("Tab not found: 99999"));
+    });
+
+    it("get_interactive_elements on empty page returns 0 elements (no bogus submit button)", async () => {
+      const emptyTab = await context.newTab({ url: "about:blank" });
+      context.setTabContent("<html><body><p>Just plain text</p></body></html>", emptyTab.id);
+
+      const elements = await context.getInteractiveElements(emptyTab.id, true);
+      assert.equal(elements.length, 0, "Empty page must not synthesize fake submit buttons");
+    });
+
+    it("get_interactive_elements extracts select elements as combobox", async () => {
+      const selectTab = await context.newTab({ url: "https://select-test.org" });
+      context.setTabContent(`
+        <html>
+          <body>
+            <select id="country-select" name="country">
+              <option value="US">USA</option>
+              <option value="UK">UK</option>
+            </select>
+          </body>
+        </html>
+      `, selectTab.id);
+
+      const elements = await context.getInteractiveElements(selectTab.id, true);
+      const selectEl = elements.find(e => e.id === "country-select");
+      assert.ok(selectEl, "Should find select element");
+      assert.equal(selectEl.tag, "select");
+      assert.equal(selectEl.role, "combobox");
+    });
+
+    it("click and fill return isError: true when given non-existent Agent Tree label", async () => {
+      const clickRes = await handler.handleMessage({
+        jsonrpc: "2.0",
+        id: 92,
+        method: "tools/call",
+        params: { name: "click", arguments: { label: "NONEXISTENT" } }
+      });
+      assert.equal(clickRes.result.isError, true);
+      assert.ok(clickRes.result.content[0].text.includes("Element not found with Agent Tree label"));
+
+      const fillRes = await handler.handleMessage({
+        jsonrpc: "2.0",
+        id: 93,
+        method: "tools/call",
+        params: { name: "fill", arguments: { label: "NONEXISTENT", text: "val" } }
+      });
+      assert.equal(fillRes.result.isError, true);
+      assert.ok(fillRes.result.content[0].text.includes("Element not found with Agent Tree label"));
+    });
+
+    it("close_tab automatically regenerates a blank tab when closing the only remaining tab", async () => {
+      const tabs = await context.listTabs();
+      for (const t of tabs) {
+        await context.closeTab(t.id);
+      }
+      assert.equal(context.tabs.length, 1, "Context should always have at least 1 tab");
+      assert.equal(context.getActiveTab().url, "about:blank");
+    });
+
+    it("PermissionManager handles glob patterns containing '?' without crashing regex", () => {
+      const pm = new PermissionManager({
+        permissions: {
+          confirm_before: ["?test", "delete_?"]
+        }
+      });
+      // Should not throw SyntaxError
+      assert.equal(pm.isConfirmRequired("xtest"), true);
+      assert.equal(pm.isConfirmRequired("delete_1"), true);
+      assert.equal(pm.isConfirmRequired("delete_12"), false);
+      assert.equal(pm.isConfirmRequired("safe_action"), false);
+    });
+
+    it("PermissionManager matches confirm_before against url, text, and script", () => {
+      const pm = new PermissionManager({
+        permissions: {
+          confirm_before: ["*payment*", "*drop_table*"]
+        }
+      });
+      assert.equal(pm.isConfirmRequired("navigate_to", { url: "https://shop.com/payment/checkout" }), true);
+      assert.equal(pm.isConfirmRequired("fill", { text: "drop_table" }), true);
+      assert.equal(pm.isConfirmRequired("evaluate_js", { script: "window.drop_table()" }), true);
+    });
+
+    it("evaluate_js sandbox isolates process and enforces timeout on infinite loop", async () => {
+      // Isolation test: process should not be accessible
+      const isoRes = await context.evaluateJs("typeof process");
+      assert.equal(isoRes.result, "undefined", "process must not be accessible in evaluate_js sandbox");
+
+      // Timeout test: infinite loop should terminate within timeout
+      await assert.rejects(
+        async () => {
+          await context.evaluateJs("while(true){}");
+        },
+        /JavaScript evaluation error/
+      );
+    });
+
+    it("WebSocketTransport reassembles fragmented WebSocket frames", async () => {
+      const wsTransport = new WebSocketTransport({
+        handler,
+        port: 0
+      });
+      const port = await wsTransport.start();
+
+      const net = require("node:net");
+      const client = net.createConnection({ port, host: "127.0.0.1" });
+
+      await new Promise(resolve => client.once("connect", resolve));
+
+      // Handshake
+      client.write([
+        "GET / HTTP/1.1",
+        "Host: 127.0.0.1",
+        "Upgrade: websocket",
+        "Connection: Upgrade",
+        "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
+        "Sec-WebSocket-Version: 13",
+        "\r\n"
+      ].join("\r\n"));
+
+      // Wait for handshake response
+      await new Promise((resolve) => {
+        client.once("data", resolve);
+      });
+
+      const fullMsg = JSON.stringify({ jsonrpc: "2.0", id: "frag-1", method: "ping" });
+      const part1 = Buffer.from(fullMsg.slice(0, 10));
+      const part2 = Buffer.from(fullMsg.slice(10));
+
+      // Frame 1: FIN=0 (0x01), masked
+      const maskKey = Buffer.from([1, 2, 3, 4]);
+      const maskedPart1 = Buffer.alloc(part1.length);
+      for (let i = 0; i < part1.length; i++) maskedPart1[i] = part1[i] ^ maskKey[i % 4];
+      const frame1Header = Buffer.from([0x01, 0x80 | part1.length]);
+      client.write(Buffer.concat([frame1Header, maskKey, maskedPart1]));
+
+      // Frame 2: FIN=1 (0x80), opcode=0x00 (continuation), masked
+      const maskedPart2 = Buffer.alloc(part2.length);
+      for (let i = 0; i < part2.length; i++) maskedPart2[i] = part2[i] ^ maskKey[i % 4];
+      const frame2Header = Buffer.from([0x80, 0x80 | part2.length]);
+
+      const responsePromise = new Promise((resolve) => {
+        client.on("data", (data) => {
+          // Unmask response payload from server (server frames are not masked)
+          const payloadLen = data[1] & 0x7f;
+          const payload = data.slice(2, 2 + payloadLen);
+          resolve(JSON.parse(payload.toString("utf8")));
+        });
+      });
+
+      client.write(Buffer.concat([frame2Header, maskKey, maskedPart2]));
+
+      const res = await responsePromise;
+      assert.equal(res.id, "frag-1");
+      assert.deepEqual(res.result, {});
+
+      client.destroy();
+      await wsTransport.stop();
+    });
+  });
 });
+

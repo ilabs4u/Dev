@@ -54,8 +54,8 @@ class McpProtocolHandler {
 
     const { id, method, params } = message;
 
-    // Handle notifications (no id)
-    const isNotification = id === undefined || id === null;
+    // Handle notifications (missing id or notifications/ prefix)
+    const isNotification = id === undefined || (typeof method === "string" && method.startsWith("notifications/"));
 
     if (!method || typeof method !== "string") {
       if (isNotification) return null;
@@ -144,7 +144,9 @@ class McpProtocolHandler {
   }
 
   async handleToolCall(params) {
-    const { name, arguments: args = {} } = params;
+    const { name, arguments: rawArgs } = params || {};
+    const args = (rawArgs && typeof rawArgs === "object") ? rawArgs : {};
+
     if (!name) {
       const err = new Error("Missing tool name in tools/call");
       err.jsonRpcCode = -32602;
@@ -175,7 +177,7 @@ class McpProtocolHandler {
       const result = await tool.handler(args, this.context, this.permissions);
       return {
         content: result.content || [{ type: "text", text: JSON.stringify(result.data || "success") }],
-        isError: false
+        isError: result.isError !== undefined ? !!result.isError : false
       };
     } catch (err) {
       return {
