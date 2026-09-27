@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dev Browser — Network Hacker Mode</title>
+  <link rel="stylesheet" href="network-panel.css">
+</head>
+<body class="network-body">
+  <div class="network-container">
+    <header class="network-header">
+      <div class="header-left">
+        <span class="header-icon">🌐</span>
+        <div>
+          <h1>Network & Proxy Center</h1>
+          <p class="header-sub">One-click IP change, Tor routing, SOCKS5 proxy, and DNS-over-HTTPS controls</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <span id="global-status-badge" class="status-badge direct">Direct Connection</span>
+      </div>
+    </header>
+
+    <div class="network-grid">
+      <!-- IP & Identity Card -->
+      <section class="card ip-card">
+        <div class="card-header">
+          <h2>Public IP & Identity</h2>
+          <button id="refresh-ip-btn" class="btn btn-secondary">⟳ Refresh IP</button>
+        </div>
+        <div class="ip-display">
+          <div class="ip-main">
+            <span class="ip-label">Detected Public IP</span>
+            <div id="display-ip-address" class="ip-address">Detecting...</div>
+          </div>
+          <div class="ip-meta">
+            <div class="meta-item">
+              <span class="meta-label">Routing Mode:</span>
+              <span id="display-routing-mode" class="meta-value">Direct</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">DNS Leak Protection:</span>
+              <span id="display-leak-protection" class="meta-value active">Active (proxyDNS: true)</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Last Checked:</span>
+              <span id="display-last-checked" class="meta-value">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Proxy Mode Selector Card -->
+      <section class="card proxy-card">
+        <div class="card-header">
+          <h2>Proxy Routing Mode</h2>
+          <span class="card-hint">Changes apply instantly to all outgoing browser requests</span>
+        </div>
+
+        <div class="mode-selector-grid">
+          <!-- Direct -->
+          <div class="mode-card active" id="mode-card-direct" data-mode="direct">
+            <div class="mode-icon">🌐</div>
+            <div class="mode-title">Direct</div>
+            <div class="mode-description">No proxy. Direct connection through standard network interface.</div>
+            <div class="mode-badge">Fastest</div>
+          </div>
+
+          <!-- SOCKS5 -->
+          <div class="mode-card" id="mode-card-socks5" data-mode="socks5">
+            <div class="mode-icon">🧦</div>
+            <div class="mode-title">SOCKS5 Proxy</div>
+            <div class="mode-description">Routes via local or remote SOCKS5 proxy at <code>127.0.0.1:1080</code> with remote DNS.</div>
+            <div class="mode-badge">SOCKS5</div>
+          </div>
+
+          <!-- Tor -->
+          <div class="mode-card" id="mode-card-tor" data-mode="tor">
+            <div class="mode-icon">🧅</div>
+            <div class="mode-title">Tor Onion Network</div>
+            <div class="mode-description">Multi-hop encrypted anonymity via Tor daemon at <code>127.0.0.1:9050</code>.</div>
+            <div class="mode-badge tor">Anonymous</div>
+          </div>
+        </div>
+
+        <div class="proxy-actions-bar">
+          <button id="quick-rotate-btn" class="btn btn-primary">🔄 Rotate Proxy (HotKey: &lt;leader&gt;ip)</button>
+          <button id="new-tor-identity-btn" class="btn btn-secondary">🧅 New Tor Identity (SIGNAL NEWNYM)</button>
+        </div>
+      </section>
+
+      <!-- DNS Configuration Card -->
+      <section class="card dns-card">
+        <div class="card-header">
+          <h2>DNS over HTTPS (DoH)</h2>
+          <span class="card-hint">Encrypted DNS queries prevent ISP monitoring</span>
+        </div>
+        <div class="dns-options">
+          <label class="dns-radio">
+            <input type="radio" name="doh-resolver" value="cloudflare-doh" checked>
+            <div>
+              <strong>Cloudflare DoH (1.1.1.1)</strong>
+              <span>Fastest privacy-first DNS resolution</span>
+            </div>
+          </label>
+          <label class="dns-radio">
+            <input type="radio" name="doh-resolver" value="quad9-doh">
+            <div>
+              <strong>Quad9 DoH (9.9.9.9)</strong>
+              <span>Malware & phishing blocking built-in</span>
+            </div>
+          </label>
+          <label class="dns-radio">
+            <input type="radio" name="doh-resolver" value="system">
+            <div>
+              <strong>System Default DNS</strong>
+              <span>Standard OS network resolver</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Routing Rules & Bypass Card -->
+      <section class="card rules-card">
+        <div class="card-header">
+          <h2>Special Routing Rules</h2>
+        </div>
+        <ul class="rules-list">
+          <li>
+            <span class="rule-pattern">*.onion</span>
+            <span class="rule-target tor">Always routed via Tor SOCKS (127.0.0.1:9050)</span>
+          </li>
+          <li>
+            <span class="rule-pattern">localhost, 127.0.0.1, ::1</span>
+            <span class="rule-target direct">Bypassed (Direct connection)</span>
+          </li>
+          <li>
+            <span class="rule-pattern">Remote DNS</span>
+            <span class="rule-target info">proxyDNS: true (prevents local DNS leaks)</span>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <script src="network-panel.js"></script>
+</body>
+</html>

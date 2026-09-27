@@ -1,0 +1,359 @@
+/* Dev Browser - Network Hacker Mode Panel Styles */
+
+:root {
+  --bg-primary: #0d0e15;
+  --bg-secondary: #141522;
+  --bg-tertiary: #1b1d2e;
+  --border-color: #272a42;
+  --border-focus: #38bdf8;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --accent-cyan: #38bdf8;
+  --accent-green: #22c55e;
+  --accent-purple: #c084fc;
+  --accent-orange: #fb923c;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body.network-body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Fira Code", monospace;
+  min-height: 100vh;
+  padding: 32px 24px;
+}
+
+.network-container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.network-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-icon {
+  font-size: 32px;
+}
+
+.network-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.header-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.status-badge {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.direct {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--accent-green);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-badge.socks5 {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.status-badge.tor {
+  background: rgba(192, 132, 252, 0.15);
+  color: var(--accent-purple);
+  border: 1px solid rgba(192, 132, 252, 0.3);
+}
+
+.network-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.card-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* IP Card */
+.ip-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.ip-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.ip-address {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: "Fira Code", monospace;
+  color: var(--accent-cyan);
+  margin-top: 4px;
+}
+
+.ip-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.meta-item {
+  display: flex;
+  gap: 8px;
+}
+
+.meta-value {
+  color: #ffffff;
+  font-family: monospace;
+}
+
+.meta-value.active {
+  color: var(--accent-green);
+}
+
+/* Mode Selectors */
+.mode-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.mode-card {
+  position: relative;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-card:hover {
+  border-color: #3b4064;
+  transform: translateY(-2px);
+}
+
+.mode-card.active {
+  border-color: var(--accent-cyan);
+  background: #192238;
+}
+
+.mode-card.active#mode-card-tor {
+  border-color: var(--accent-purple);
+  background: #251b38;
+}
+
+.mode-icon {
+  font-size: 26px;
+  margin-bottom: 8px;
+}
+
+.mode-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.mode-description {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.mode-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.mode-badge.tor {
+  color: var(--accent-purple);
+  border-color: rgba(192, 132, 252, 0.4);
+}
+
+.proxy-actions-bar {
+  display: flex;
+  gap: 12px;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.btn-primary {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background: #0369a1;
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+.btn-secondary:hover {
+  background: #272a44;
+  border-color: #3f446b;
+}
+
+/* DNS Options */
+.dns-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dns-radio {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 12px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dns-radio input {
+  accent-color: var(--accent-cyan);
+}
+
+.dns-radio div {
+  display: flex;
+  flex-direction: column;
+  font-size: 12.5px;
+}
+
+.dns-radio span {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* Rules List */
+.rules-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rules-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.rule-pattern {
+  font-family: "Fira Code", monospace;
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+.rule-target {
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.rule-target.tor {
+  background: rgba(192, 132, 252, 0.15);
+  color: var(--accent-purple);
+}
+
+.rule-target.direct {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--accent-green);
+}
+
+.rule-target.info {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-cyan);
+}

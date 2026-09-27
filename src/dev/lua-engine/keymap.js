@@ -93,6 +93,13 @@ class KeymapManager {
     return false;
   }
 
+  clear() {
+    for (const mode of Object.values(MODES)) {
+      this.mappings.set(mode, new Map());
+    }
+    this.clearSequenceBuffer();
+  }
+
   get(mode, key) {
     if (this.mappings.has(mode)) {
       const normalized = this.normalizeKey(key);
@@ -211,8 +218,8 @@ class KeymapManager {
       return { handled: false, reason: "insert_mode" };
     }
 
-    // In NORMAL mode: pressing 'i' enters insert mode
-    if (this.currentMode === MODES.NORMAL && event.key === "i" && !event.ctrlKey && !event.altKey && !event.metaKey) {
+    // In NORMAL mode: pressing 'i' enters insert mode (unless part of a multi-key sequence)
+    if (this.currentMode === MODES.NORMAL && !this.sequenceBuffer && event.key === "i" && !event.ctrlKey && !event.altKey && !event.metaKey) {
       this.setMode(MODES.INSERT);
       if (typeof event.preventDefault === "function") event.preventDefault();
       return { handled: true, action: "enter_insert_mode" };

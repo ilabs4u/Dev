@@ -155,6 +155,18 @@ class DevLuaBridge {
       }
 
       // Handle network.proxy / dns
+      const proxySetMatch = line.match(/^network\.proxy\.set\(\s*["']([^"']+)["']/);
+      if (proxySetMatch) {
+        this.networkSettings.proxy.default = proxySetMatch[1];
+        continue;
+      }
+
+      const dnsSetMatch = line.match(/^network\.dns\.set\(\s*["']([^"']+)["']/);
+      if (dnsSetMatch) {
+        this.networkSettings.dns.resolver = dnsSetMatch[1];
+        continue;
+      }
+
       if (line.includes("network.proxy.default")) {
         const val = line.split("=")[1]?.replace(/["';\s]/g, "");
         if (val) this.networkSettings.proxy.default = val;

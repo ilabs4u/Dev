@@ -1,0 +1,223 @@
+/* Dev Browser - Network Toolbar Widget Styles */
+
+.dev-network-toolbar-widget {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Fira Code", monospace;
+  user-select: none;
+}
+
+.dev-network-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  background: #181924;
+  border: 1px solid #2e3048;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dev-network-toolbar-button:hover {
+  background: #222336;
+  border-color: #3e4266;
+}
+
+.dev-network-mode-icon {
+  font-size: 13px;
+}
+
+.dev-network-mode-label {
+  font-size: 11.5px;
+  color: #f8fafc;
+}
+
+.dev-network-ip-badge {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  background: #23253a;
+  border-radius: 4px;
+  color: #94a3b8;
+  font-family: "Fira Code", monospace;
+  letter-spacing: -0.3px;
+  border: 1px solid #333652;
+}
+
+.dev-network-ip-badge.mode-tor {
+  background: #2d1844;
+  color: #d8b4fe;
+  border-color: #7e22ce;
+}
+
+.dev-network-ip-badge.mode-socks5 {
+  background: #0c283d;
+  color: #7dd3fc;
+  border-color: #0284c7;
+}
+
+.dev-network-ip-badge.mode-direct {
+  background: #0f2e1e;
+  color: #86efac;
+  border-color: #16a34a;
+}
+
+.dev-network-ip-badge.fetching {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Dropdown */
+.dev-network-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 280px;
+  background: #141520;
+  border: 1px solid #2b2e46;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  padding: 10px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dev-network-dropdown.dev-network-hidden {
+  display: none;
+}
+
+.dev-network-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #222436;
+}
+
+.dropdown-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.dropdown-refresh-btn {
+  background: transparent;
+  border: none;
+  color: #38bdf8;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.dropdown-refresh-btn:hover {
+  background: #1e293b;
+}
+
+.dev-network-ip-status-box {
+  background: #0f1019;
+  border: 1px solid #23253b;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.dev-network-ip-status-box .ip-label {
+  font-size: 9.5px;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.dev-network-ip-status-box .ip-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  font-family: "Fira Code", monospace;
+  margin: 2px 0;
+}
+
+.dev-network-ip-status-box .ip-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.dev-network-modes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dev-network-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  border: 1px solid transparent;
+}
+
+.dev-network-mode-option:hover {
+  background: #1e2030;
+}
+
+.dev-network-mode-option.selected {
+  background: #1e2238;
+  border-color: #38bdf8;
+}
+
+.mode-opt-icon {
+  font-size: 15px;
+}
+
+.mode-opt-details {
+  flex: 1;
+}
+
+.mode-opt-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.mode-opt-desc {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.mode-opt-check {
+  color: #38bdf8;
+  font-weight: bold;
+}
+
+.dev-network-dropdown-actions {
+  border-top: 1px solid #222436;
+  padding-top: 6px;
+}
+
+.action-btn {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #2b2e46;
+  background: #181926;
+  color: #cbd5e1;
+  font-size: 11px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.action-btn:hover {
+  background: #25283d;
+  color: #ffffff;
+}

@@ -43,6 +43,7 @@ class VimController {
     this.keymap.registerActionHandler("prev_tab", () => this.browserDelegate.prevTab());
     this.keymap.registerActionHandler("link_hints", () => this.hints.show());
     this.keymap.registerActionHandler("command_palette", () => this.browserDelegate.commandPalette());
+    this.keymap.registerActionHandler("rotate_proxy", () => (this.browserDelegate && this.browserDelegate.rotateProxy ? this.browserDelegate.rotateProxy() : null));
 
     this.keymap.onModeChange((newMode) => {
       this.updateHUD(newMode);
