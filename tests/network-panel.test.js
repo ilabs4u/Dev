@@ -612,4 +612,100 @@ describe("Task 1.5: Proxy Switching & Network Panel", () => {
       assert.equal(palette.isOpen, false);
     });
   });
+
+  describe("Task 3.3: DNS Panel & DoH Engine", () => {
+    const { DnsEngine, DOH_RESOLVERS, defaultDnsEngine } = require("../src/dev/network-panel");
+
+    it("supports Cloudflare, Quad9, Google, NextDNS, and custom DoH resolvers", () => {
+      const engine = new DnsEngine();
+      assert.equal(engine.getResolver().id, "cloudflare");
+
+      engine.setResolver("quad9");
+      assert.equal(engine.getResolver().id, "quad9");
+
+      engine.setResolver("google");
+      assert.equal(engine.getResolver().id, "google");
+
+      engine.setResolver("nextdns");
+      assert.equal(engine.getResolver().id, "nextdns");
+
+      engine.setResolver("https://dns.adguard.com/dns-query");
+      assert.ok(engine.getResolver().id.startsWith("custom-"));
+      assert.equal(engine.getResolver().url, "https://dns.adguard.com/dns-query");
+    });
+
+    it("manages per-domain DNS override table", () => {
+      const engine = new DnsEngine();
+      engine.setOverride("test.local", "127.0.0.1");
+      engine.setOverride("api.dev", "10.0.0.5");
+
+      assert.equal(engine.getOverride("test.local"), "127.0.0.1");
+      assert.equal(engine.getOverride("TEST.LOCAL"), "127.0.0.1", "Must be case-insensitive");
+      assert.equal(engine.listOverrides().length, 2);
+
+      assert.equal(engine.removeOverride("test.local"), true);
+      assert.equal(engine.getOverride("test.local"), null);
+      assert.equal(engine.listOverrides().length, 1);
+
+      engine.clearOverrides();
+      assert.equal(engine.listOverrides().length, 0);
+    });
+
+    it("prioritizes per-domain overrides before remote DoH lookup", async () => {
+      let fetchCalled = false;
+      const mockFetch = async () => {
+        fetchCalled = true;
+        return { ok: true, json: async () => ({}) };
+      };
+
+      const engine = new DnsEngine();
+      engine.setOverride("myapp.internal", "192.168.1.50");
+
+      const res = await engine.resolve("myapp.internal", "A", { fetchFn: mockFetch });
+      assert.equal(fetchCalled, false, "Must not query remote DoH when override exists");
+      assert.equal(res.fromOverride, true);
+      assert.equal(res.ip, "192.168.1.50");
+      assert.equal(res.status, "success");
+    });
+
+    it("resolves queries via DoH endpoint and tracks query logs", async () => {
+      const mockFetch = async (url) => {
+        return {
+          ok: true,
+          json: async () => ({
+            Status: 0,
+            Answer: [{ name: "example.com", type: 1, data: "93.184.216.34", TTL: 300 }]
+          })
+        };
+      };
+
+      const engine = new DnsEngine();
+      engine.setResolver("cloudflare");
+
+      const res = await engine.resolve("example.com", "A", { fetchFn: mockFetch });
+      assert.equal(res.status, "success");
+      assert.equal(res.ip, "93.184.216.34");
+      assert.equal(res.fromOverride, false);
+
+      const logs = engine.getQueryLogs();
+      assert.ok(logs.length > 0);
+      assert.equal(logs[0].domain, "example.com");
+      assert.equal(logs[0].ip, "93.184.216.34");
+    });
+
+    it("integrates network.dns.set and network.dns.override in Lua bridge", () => {
+      const { DevLua } = require("../src/dev/lua-engine");
+
+      DevLua.dns.set("google");
+      assert.equal(defaultDnsEngine.getResolver().id, "google");
+
+      DevLua.dns.override("test.app", "127.0.0.1");
+      assert.equal(defaultDnsEngine.getOverride("test.app"), "127.0.0.1");
+
+      // Evaluate Lua script lines
+      DevLua.evaluateLuaScript('network.dns.set("cloudflare")\nnetwork.dns.override("script.local", "10.0.0.1")');
+      assert.equal(defaultDnsEngine.getResolver().id, "cloudflare");
+      assert.equal(defaultDnsEngine.getOverride("script.local"), "10.0.0.1");
+    });
+  });
 });

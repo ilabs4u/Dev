@@ -54,6 +54,15 @@ class KeymapManager {
 
   setLeader(key) {
     this.leaderKey = key;
+    for (const [, map] of this.mappings.entries()) {
+      for (const [k, v] of Array.from(map.entries())) {
+        if (v.originalKey && /<leader>/i.test(v.originalKey)) {
+          map.delete(k);
+          const newNormalized = this.normalizeKey(v.originalKey);
+          map.set(newNormalized, v);
+        }
+      }
+    }
   }
 
   normalizeKey(key) {
