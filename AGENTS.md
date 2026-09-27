@@ -106,12 +106,30 @@ Each task is self-contained with enough context to implement independently.
 
 ---
 
-## 🟡 Phase 2C — AI Sidebar (BYOM) (Next)
-- Providers (Ollama, OpenAI, Claude, LM Studio), Chat UI, and Lua AI API.
-- **Status:** ⬜ Not started
+## 🟢 Phase 2C — AI Sidebar (BYOM) (Completed)
+
+### Task 2C.1: Bring Your Own Model Providers
+- **Goal:** Abstract `BaseProvider` streaming interface, native `OllamaProvider` (NDJSON), `OpenAIProvider` (SSE with custom `baseUrl`), `ClaudeProvider` (Anthropic Messages API), `LMStudioProvider` (`http://localhost:1234/v1`), and dynamic `ProviderRegistry`.
+- **Files:** `src/dev/ai-sidebar/providers/`
+- **Status:** ✅ Completed
+
+### Task 2C.2: Responsive Collapsible Chat Sidebar UI
+- **Goal:** Dark-themed sidebar panel with streaming token append, markdown parsing, code blocks with copy button, stop generation, clear chat, and model selector.
+- **Files:** `src/dev/ai-sidebar/sidebar.html`, `sidebar.css`, `sidebar.js`
+- **Status:** ✅ Completed
+
+### Task 2C.3: Active Page Context Extractor
+- **Goal:** Extract active tab content, text selection, console error buffer, and Agent Tree interactive elements into prompt actions ("Summarize page", "Explain error", "Analyze page").
+- **Files:** `src/dev/ai-sidebar/context.js`
+- **Status:** ✅ Completed
+
+### Task 2C.4: Lua Bridge & Vim Mode Integration
+- **Goal:** Expose `ai.default_backend`, `ai.ask(prompt)`, `ai.summarize(text)` to Lua engine; wire `<leader>ai` shortcut to toggle AI sidebar.
+- **Files:** `src/dev/lua-engine/lua-bridge.js`, `src/dev/vim-mode/vim-controller.js`, `src/dev/lua-engine/keymap.js`
+- **Status:** ✅ Completed (49 new tests passing; 216 total passing)
 
 ---
 
-## 🟢 Phase 3 — Developer Workstation (Future)
+## 🟡 Phase 3 — Developer Workstation (Next)
 - Embedded Terminal, Dev Toolkit, DNS Panel, Theme Engine, Docker Dashboard.
 - **Status:** ⬜ Not started

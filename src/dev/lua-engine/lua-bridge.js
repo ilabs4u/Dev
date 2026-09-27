@@ -31,7 +31,10 @@ class DevLuaBridge {
     };
     this.aiSettings = {
       default_backend: "ollama",
-      ollama: { model: "llama3.2", url: "http://localhost:11434" }
+      ollama: { model: "llama3.2", url: "http://localhost:11434" },
+      openai: { model: "gpt-4o", url: "https://api.openai.com/v1", api_key: "" },
+      claude: { model: "claude-3-5-sonnet-20241022", url: "https://api.anthropic.com", api_key: "" },
+      lmstudio: { model: "local-model", url: "http://localhost:1234/v1" }
     };
     this.consoleCallback = null;
   }
@@ -174,7 +177,109 @@ class DevLuaBridge {
         const val = line.split("=")[1]?.replace(/["';\s]/g, "");
         if (val) this.networkSettings.dns.resolver = val;
       }
+
+      // Handle ai.default_backend = "..."
+      const aiBackendMatch = line.match(/^ai\.default_backend\s*=\s*["']([^"']+)["']/);
+      if (aiBackendMatch) {
+        this.aiSettings.default_backend = aiBackendMatch[1];
+        continue;
+      }
+
+      // Handle ai.<provider>.<key> = "..."
+      const aiConfigMatch = line.match(/^ai\.([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\s*=\s*(.+)$/);
+      if (aiConfigMatch) {
+        const [, provider, key, rawVal] = aiConfigMatch;
+        if (!this.aiSettings[provider]) {
+          this.aiSettings[provider] = {};
+        }
+        let cleanVal = rawVal.trim().replace(/^["']|["';\s]+$/g, "");
+        if (cleanVal === "true") cleanVal = true;
+        else if (cleanVal === "false") cleanVal = false;
+        else if (!isNaN(Number(cleanVal)) && cleanVal !== "") cleanVal = Number(cleanVal);
+        this.aiSettings[provider][key] = cleanVal;
+        continue;
+      }
+
+      // Handle ai.ask("...")
+      const aiAskMatch = line.match(/^ai\.ask\(\s*["'](.*)["']\s*\)/);
+      if (aiAskMatch) {
+        this.ask(aiAskMatch[1]);
+        continue;
+      }
+
+      // Handle ai.summarize("...")
+      const aiSummarizeMatch = line.match(/^ai\.summarize\(\s*["'](.*)["']\s*\)/);
+      if (aiSummarizeMatch) {
+        this.summarize(aiSummarizeMatch[1]);
+        continue;
+      }
     }
+  }
+
+  /**
+   * Programmatic AI ask query from Lua bridge.
+   * @param {string} prompt
+   * @param {Object} [options]
+   * @returns {Promise<string>}
+   */
+  async ask(prompt, options = {}) {
+    try {
+      const { ask, defaultRegistry } = require("../ai-sidebar");
+      const provider = options.provider || this.aiSettings.default_backend;
+      const providerConfig = this.aiSettings[provider] || {};
+      const model = options.model || providerConfig.model;
+      const res = await ask(prompt, {
+        provider,
+        model,
+        registry: defaultRegistry,
+        ...options
+      });
+      return res;
+    } catch (err) {
+      this.log(`ai.ask error: ${err.message}`);
+      throw err;
+    }
+  }
+
+  /**
+   * Programmatic AI summarize query from Lua bridge.
+   * @param {string} text
+   * @param {Object} [options]
+   * @returns {Promise<string>}
+   */
+  async summarize(text, options = {}) {
+    try {
+      const { summarize, defaultRegistry } = require("../ai-sidebar");
+      const provider = options.provider || this.aiSettings.default_backend;
+      const providerConfig = this.aiSettings[provider] || {};
+      const model = options.model || providerConfig.model;
+      const res = await summarize(text, {
+        provider,
+        model,
+        registry: defaultRegistry,
+        ...options
+      });
+      return res;
+    } catch (err) {
+      this.log(`ai.summarize error: ${err.message}`);
+      throw err;
+    }
+  }
+
+  setDefaultBackend(backend) {
+    this.aiSettings.default_backend = backend;
+    try {
+      const { defaultRegistry } = require("../ai-sidebar");
+      if (defaultRegistry.has(backend)) {
+        defaultRegistry.setActive(backend);
+      }
+    } catch {
+      // Ignore if ai-sidebar not loaded yet
+    }
+  }
+
+  getDefaultBackend() {
+    return this.aiSettings.default_backend;
   }
 
   getKeymaps() {
@@ -200,6 +305,13 @@ class DevLuaBridge {
     this.commands.clear();
     this.workspaces.clear();
     this.plugins.clear();
+    this.aiSettings = {
+      default_backend: "ollama",
+      ollama: { model: "llama3.2", url: "http://localhost:11434" },
+      openai: { model: "gpt-4o", url: "https://api.openai.com/v1", api_key: "" },
+      claude: { model: "claude-3-5-sonnet-20241022", url: "https://api.anthropic.com", api_key: "" },
+      lmstudio: { model: "local-model", url: "http://localhost:1234/v1" }
+    };
   }
 }
 

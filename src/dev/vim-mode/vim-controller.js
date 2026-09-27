@@ -36,9 +36,18 @@ class VimController {
         } catch {
           return null;
         }
+      },
+      toggleAiSidebar: () => {
+        try {
+          const { defaultSidebar } = require("../ai-sidebar");
+          return defaultSidebar.toggle();
+        } catch {
+          return null;
+        }
       }
     };
     this.agentTreeOverlay = options.agentTreeOverlay || null;
+    this.aiSidebar = options.aiSidebar || null;
     this.browserDelegate = Object.assign({}, defaultDelegate, options.browserDelegate || {});
 
     this.boundKeyHandler = this.onKeyDown.bind(this);
@@ -82,6 +91,20 @@ class VimController {
       try {
         const { defaultOverlay } = require("../agent-tree");
         return defaultOverlay.toggle();
+      } catch {
+        return null;
+      }
+    });
+    this.keymap.registerActionHandler("toggle_ai_sidebar", () => {
+      if (this.aiSidebar && typeof this.aiSidebar.toggle === "function") {
+        return this.aiSidebar.toggle();
+      }
+      if (this.browserDelegate && typeof this.browserDelegate.toggleAiSidebar === "function") {
+        return this.browserDelegate.toggleAiSidebar();
+      }
+      try {
+        const { defaultSidebar } = require("../ai-sidebar");
+        return defaultSidebar.toggle();
       } catch {
         return null;
       }

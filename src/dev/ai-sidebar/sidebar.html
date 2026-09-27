@@ -1,0 +1,85 @@
+<aside id="dev-ai-sidebar" class="dev-ai-sidebar collapsed" aria-label="Dev Browser AI Sidebar">
+  <div class="ai-header">
+    <div class="ai-header-title-row">
+      <div class="ai-title-wrap">
+        <span class="ai-logo-icon">⚡</span>
+        <span class="ai-title">Dev AI</span>
+        <span id="ai-status-indicator" class="ai-status-indicator ready" title="Ready"></span>
+      </div>
+      <div class="ai-header-actions">
+        <button id="ai-btn-clear" class="ai-icon-btn" title="Clear Conversation" aria-label="Clear Conversation">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+        <button id="ai-btn-close" class="ai-icon-btn" title="Close AI Sidebar (<leader>ai)" aria-label="Close AI Sidebar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="ai-config-row">
+      <div class="ai-control-group">
+        <label for="ai-select-provider">Backend</label>
+        <select id="ai-select-provider" class="ai-select">
+          <option value="ollama">Ollama (Local)</option>
+          <option value="openai">OpenAI</option>
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="lmstudio">LM Studio (Local)</option>
+        </select>
+      </div>
+      <div class="ai-control-group model-group">
+        <label for="ai-input-model">Model</label>
+        <input type="text" id="ai-input-model" class="ai-input-sm" value="llama3.2" placeholder="e.g. llama3.2">
+      </div>
+    </div>
+  </div>
+
+  <div class="ai-chips-bar" role="toolbar" aria-label="Page Context Quick Actions">
+    <button class="ai-chip" data-action="summarize-page" title="Summarize current page text">
+      <span>📄</span> Summarize
+    </button>
+    <button class="ai-chip" data-action="explain-error" title="Explain recent console errors">
+      <span>⚠️</span> Errors
+    </button>
+    <button class="ai-chip" data-action="analyze-page" title="Analyze page elements with Agent Tree">
+      <span>🌳</span> Elements
+    </button>
+    <button class="ai-chip" data-action="ask-selection" title="Ask about selected text">
+      <span>✂️</span> Selection
+    </button>
+  </div>
+
+  <div id="ai-messages" class="ai-messages" role="log" aria-live="polite">
+    <div class="ai-message ai-message-assistant system-intro">
+      <div class="ai-msg-avatar">⚡</div>
+      <div class="ai-msg-body">
+        <div class="ai-msg-text">
+          <p><strong>Dev AI</strong> ready. Ask questions, inspect code, or use the quick chips above to summarize pages and debug errors.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ai-input-container">
+    <div id="ai-status-bar" class="ai-status-bar">
+      <span id="ai-status-msg" class="ai-status-msg">Ready</span>
+      <span id="ai-token-count" class="ai-token-count"></span>
+    </div>
+    <div class="ai-textarea-wrapper">
+      <textarea id="ai-input" class="ai-textarea" rows="2" placeholder="Ask AI... (Enter to send, Shift+Enter for newline)"></textarea>
+      <div class="ai-btn-group">
+        <button id="ai-btn-stop" class="ai-btn ai-btn-stop" style="display: none;" title="Stop generation">
+          Stop
+        </button>
+        <button id="ai-btn-send" class="ai-btn ai-btn-send" title="Send message (Enter)">
+          Send
+        </button>
+      </div>
+    </div>
+  </div>
+</aside>
