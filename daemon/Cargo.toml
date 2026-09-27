@@ -1,0 +1,14 @@
+[package]
+name = "dev-daemon"
+version = "0.1.0"
+edition = "2021"
+description = "Helper daemon for Dev Browser - terminal PTY, system tools, Docker bridge"
+license = "MPL-2.0"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio-tungstenite = "0.24"
+portable-pty = "0.8"
+sysinfo = "0.32"

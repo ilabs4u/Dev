@@ -1,0 +1,33 @@
+{
+  "name": "dev-browser",
+  "version": "0.1.0",
+  "description": "The world's first AI-agent-native, Lua-scriptable developer browser",
+  "author": "iLabs <ilabs4u@github.com>",
+  "license": "MPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ilabs4u/Dev.git"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "setup:linux": "bash scripts/setup.sh",
+    "setup:windows": "powershell scripts/setup.ps1",
+    "patch:apply": "node scripts/patch-apply.js",
+    "patch:export": "node scripts/patch-export.js",
+    "build": "./engine/mach build",
+    "build:release": "./engine/mach build --release",
+    "lint": "eslint src/dev/ --ext .js,.mjs,.jsx",
+    "lint:lua": "luacheck plugins/",
+    "lint:rust": "cd daemon && cargo clippy",
+    "test": "npm run test:lua && npm run test:rust",
+    "test:lua": "busted plugins/tests/",
+    "test:rust": "cd daemon && cargo test",
+    "package:linux": "node scripts/package-linux.js",
+    "package:windows": "node scripts/package-windows.js",
+    "clean": "rm -rf obj-* dist/"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0"
+  }
+}

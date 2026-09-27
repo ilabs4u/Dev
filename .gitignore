@@ -1,0 +1,36 @@
+# Build outputs
+dist/
+target/
+obj-*/
+
+# Firefox source (downloaded during setup)
+engine/
+
+# Node dependencies
+node_modules/
+
+# Python cache
+*.pyc
+__pycache__/
+
+# Environment variables
+.env
+.env.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log

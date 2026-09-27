@@ -1,0 +1,14 @@
+# Default owner
+* @ilabs4u
+
+# Lua engine
+src/dev/lua-engine/ @ilabs4u
+
+# MCP server
+src/dev/mcp-server/ @ilabs4u
+
+# Rust daemon
+daemon/ @ilabs4u
+
+# Plugins (community can own individual plugins)
+plugins/ @ilabs4u
