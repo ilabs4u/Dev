@@ -20,6 +20,7 @@ class AgentTreeOverlay {
     this.visible = false;
     this.mounted = false;
     this.targetDocument = null;
+    this._rafId = null;
 
     this.boundScrollHandler = this.onScrollOrResize.bind(this);
   }
@@ -251,9 +252,48 @@ class AgentTreeOverlay {
     }
   }
 
+  updatePositions() {
+    if (!this.visible || !this.badges || this.badges.length === 0) return 0;
+    const scrollX = typeof window !== "undefined" && window.scrollX ? window.scrollX : 0;
+    const scrollY = typeof window !== "undefined" && window.scrollY ? window.scrollY : 0;
+
+    for (let i = 0; i < this.elements.length; i++) {
+      const item = this.elements[i];
+      const badge = this.badges[i];
+      if (!badge) continue;
+
+      let rect = item.rect;
+      if (item.element && typeof item.element.getBoundingClientRect === "function") {
+        try {
+          const r = item.element.getBoundingClientRect();
+          rect = {
+            x: Math.round(r.x !== undefined ? r.x : (r.left || 0)),
+            y: Math.round(r.y !== undefined ? r.y : (r.top || 0))
+          };
+        } catch {
+          // Keep previous
+        }
+      }
+
+      const left = Math.max(0, (rect ? rect.x : 0) + scrollX);
+      const top = Math.max(0, (rect ? rect.y : 0) + scrollY);
+      badge.style.left = `${left}px`;
+      badge.style.top = `${top}px`;
+    }
+    return this.badges.length;
+  }
+
   onScrollOrResize() {
     if (!this.visible) return;
-    this.update();
+    if (this._rafId) return;
+    if (typeof requestAnimationFrame === "function") {
+      this._rafId = requestAnimationFrame(() => {
+        this._rafId = null;
+        this.updatePositions();
+      });
+    } else {
+      this.updatePositions();
+    }
   }
 
   /**
@@ -261,6 +301,11 @@ class AgentTreeOverlay {
    */
   destroy() {
     this.hide();
+
+    if (this._rafId && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
 
     if (typeof window !== "undefined" && window.removeEventListener) {
       window.removeEventListener("scroll", this.boundScrollHandler);

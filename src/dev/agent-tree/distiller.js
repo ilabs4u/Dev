@@ -72,7 +72,6 @@ const SKIP_TAGS = new Set([
   "title",
   "head",
   "noscript",
-  "template",
   "svg",
   "path",
   "circle",
@@ -132,8 +131,10 @@ class DomDistiller {
       const tag = (el.tagName || "").toLowerCase();
       if (SKIP_TAGS.has(tag)) return false;
 
-      // Disabled elements are not interactive
+      // Disabled, aria-disabled, or inert elements are not interactive
       if (el.disabled || (el.hasAttribute && el.hasAttribute("disabled"))) return false;
+      if (el.getAttribute && el.getAttribute("aria-disabled") === "true") return false;
+      if (el.inert || (el.hasAttribute && el.hasAttribute("inert"))) return false;
 
       // Hidden inputs
       if (tag === "input" && (el.type || (el.getAttribute && el.getAttribute("type")) || "").toLowerCase() === "hidden") {
@@ -152,8 +153,11 @@ class DomDistiller {
       // Event handlers / attributes
       if ((el.hasAttribute && el.hasAttribute("onclick")) || typeof el.onclick === "function") return true;
 
-      // ContentEditable
-      if (el.isContentEditable || (el.getAttribute && el.getAttribute("contenteditable") !== null && el.getAttribute("contenteditable") !== "false")) {
+      // ContentEditable: only mark root editable container, avoid duplicating every descendant p/span
+      if (el.getAttribute && el.getAttribute("contenteditable") !== null && el.getAttribute("contenteditable") !== "false") {
+        return true;
+      }
+      if (el.isContentEditable && (!el.parentElement || !el.parentElement.isContentEditable)) {
         return true;
       }
 
@@ -175,6 +179,8 @@ class DomDistiller {
     const tag = String(elementOrTag).toLowerCase();
     if (SKIP_TAGS.has(tag)) return false;
     if (attrs.disabled !== undefined && attrs.disabled !== false && attrs.disabled !== null) return false;
+    if (attrs["aria-disabled"] === "true") return false;
+    if (attrs.inert !== undefined && attrs.inert !== false && attrs.inert !== null) return false;
 
     if (tag === "input" && (attrs.type || "").toLowerCase() === "hidden") return false;
     if (tag === "button" || tag === "select" || tag === "textarea" || tag === "summary") return true;
@@ -205,6 +211,7 @@ class DomDistiller {
 
       if (el.hidden || (el.hasAttribute && el.hasAttribute("hidden"))) return false;
       if (el.getAttribute && el.getAttribute("aria-hidden") === "true") return false;
+      if (el.inert || (el.hasAttribute && el.hasAttribute("inert"))) return false;
 
       const tag = (el.tagName || "").toLowerCase();
       if (tag === "input" && (el.type || (el.getAttribute && el.getAttribute("type")) || "").toLowerCase() === "hidden") {
@@ -234,11 +241,11 @@ class DomDistiller {
         }
       }
 
-      // Bounding rect
+      // Bounding rect (zero-dimension check: if width <= 0 or height <= 0, element is invisible)
       if (typeof el.getBoundingClientRect === "function") {
         try {
           const rect = el.getBoundingClientRect();
-          if (rect.width <= 0 && rect.height <= 0) return false;
+          if (rect.width <= 0 || rect.height <= 0) return false;
         } catch {
           // Continue
         }
@@ -251,6 +258,7 @@ class DomDistiller {
     const attrs = elementOrAttrs;
     if (attrs.hidden !== undefined && attrs.hidden !== false && attrs.hidden !== null) return false;
     if (attrs["aria-hidden"] === "true") return false;
+    if (attrs.inert !== undefined && attrs.inert !== false && attrs.inert !== null) return false;
     if ((attrs.type || "").toLowerCase() === "hidden") return false;
 
     if (attrs.style) {
@@ -441,7 +449,7 @@ class DomDistiller {
   }
 
   /**
-   * Distill real DOM tree (fast single-pass DFS with shadow root traversal).
+   * Distill real DOM tree (fast single-pass DFS with shadow root and iframe traversal).
    */
   _distillDom(rootNode, options = {}) {
     const doc = rootNode.nodeType === 9 ? rootNode : (rootNode.ownerDocument || (typeof document !== "undefined" ? document : null));
@@ -451,11 +459,11 @@ class DomDistiller {
     const elements = [];
     let currentIndex = 0;
 
-    const walk = (node, inShadow = false, shadowHost = null) => {
+    const walk = (node, inShadow = false, shadowHost = null, inIframe = false, iframeHost = null) => {
       if (!node || node.nodeType !== 1) return;
 
       const tag = (node.tagName || "").toLowerCase();
-      if (SKIP_TAGS.has(tag)) return;
+      if (SKIP_TAGS.has(tag) || (tag === "template" && !node.shadowRoot)) return;
 
       // Filter hidden node and skip entire subtree
       if (!this.isVisible(node)) return;
@@ -480,12 +488,19 @@ class DomDistiller {
         const value = (tag === "input" || tag === "textarea" || tag === "select") ? (node.value !== undefined ? String(node.value) : "") : null;
         const href = tag === "a" ? ((node.getAttribute && node.getAttribute("href")) || node.href || null) : null;
 
+        let finalSelector = selector;
+        if (inIframe && iframeHost) {
+          finalSelector = `${iframeHost} >>> ${finalSelector}`;
+        } else if (inShadow && shadowHost) {
+          finalSelector = `${shadowHost} >>> ${finalSelector}`;
+        }
+
         elements.push({
           label,
           tag,
           text,
           role: role || tag,
-          selector: inShadow && shadowHost ? `${shadowHost} >>> ${selector}` : selector,
+          selector: finalSelector,
           rect,
           visible: true,
           ariaLabel,
@@ -497,6 +512,8 @@ class DomDistiller {
           disabled: false,
           inShadow,
           shadowHost: shadowHost || null,
+          inIframe,
+          iframeHost: iframeHost || null,
           element: node
         });
 
@@ -506,25 +523,55 @@ class DomDistiller {
       // Inspect Shadow DOM
       if (node.shadowRoot) {
         const hostSelector = this.generateSelector(node, startNode);
-        const shadowChildren = node.shadowRoot.children || node.shadowRoot.childNodes;
+        const shadowChildren = node.shadowRoot.children || node.shadowRoot.childNodes || [];
         for (let i = 0; i < shadowChildren.length; i++) {
-          walk(shadowChildren[i], true, hostSelector);
+          walk(shadowChildren[i], true, hostSelector, inIframe, iframeHost);
+        }
+      }
+
+      // Inspect same-origin / accessible iframe documents
+      if (tag === "iframe") {
+        try {
+          const iframeDoc = node.contentDocument || (node.contentWindow && node.contentWindow.document);
+          if (iframeDoc) {
+            const hostSelector = this.generateSelector(node, startNode);
+            const iframeRoot = iframeDoc.body || iframeDoc.documentElement;
+            if (iframeRoot) {
+              const iframeChildren = iframeRoot.children || iframeRoot.childNodes || [];
+              for (let i = 0; i < iframeChildren.length; i++) {
+                walk(iframeChildren[i], inShadow, shadowHost, true, hostSelector);
+              }
+            }
+          }
+        } catch {
+          // Cross-origin iframe security restriction
         }
       }
 
       // Traverse light DOM child nodes
       const children = node.children || [];
       for (let i = 0; i < children.length; i++) {
-        walk(children[i], inShadow, shadowHost);
+        walk(children[i], inShadow, shadowHost, inIframe, iframeHost);
       }
     };
 
-    walk(startNode, false, null);
+    walk(startNode, false, null, false, null);
     return elements;
+  }
+
+  _unescapeHtml(str) {
+    if (!str) return "";
+    return str
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&");
   }
 
   /**
    * Distill HTML string sequentially in document order without browser DOM dependency.
+   * Employs stack-based tag tree tracking for visibility, template, shadow, and iframe boundaries.
    */
   _distillHtmlString(html, options = {}) {
     if (!html || typeof html !== "string") return [];
@@ -532,23 +579,42 @@ class DomDistiller {
     const elements = [];
     let currentIndex = 0;
 
-    // Fast-strip scripts and styles
+    // Fast-strip comments, scripts, and styles
     const cleanHtml = html
+      .replace(/<!--[\s\S]*?-->/g, "")
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
 
+    const VOID_TAGS = new Set([
+      "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"
+    ]);
+
     // Track tag counts for nth-of-type selectors
     const tagCounts = Object.create(null);
+    const stack = [];
 
-    // Regex for opening or void tags: <tag attr1="val" ...>
-    const tagRegex = /<([a-zA-Z0-9:-]+)((?:\s+[^>]*?)?)\/?>/gi;
+    // Tag matching regex supporting quoted attribute values
+    const tagRegex = /<(\/)?([a-zA-Z0-9:-]+)((?:\s+[a-zA-Z0-9_:-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/)?>/gi;
     let match;
 
     while ((match = tagRegex.exec(cleanHtml)) !== null) {
       const fullMatch = match[0];
-      const tag = match[1].toLowerCase();
-      const rawAttrs = match[2] || "";
+      const isClosing = Boolean(match[1]);
+      const tag = match[2].toLowerCase();
+      const rawAttrs = match[3] || "";
+      const isSelfClosing = Boolean(match[4]) || VOID_TAGS.has(tag);
       const matchIndex = match.index;
+
+      if (isClosing) {
+        // Pop matching tag from stack
+        for (let i = stack.length - 1; i >= 0; i--) {
+          if (stack[i].tag === tag) {
+            stack.splice(i);
+            break;
+          }
+        }
+        continue;
+      }
 
       if (SKIP_TAGS.has(tag)) continue;
 
@@ -558,44 +624,44 @@ class DomDistiller {
       // Parse attributes
       const attrs = this._parseAttributes(rawAttrs);
 
-      // Check if inside a template shadowroot
-      const inShadow = this._isInsideShadowRoot(cleanHtml, matchIndex);
+      const parent = stack.length > 0 ? stack[stack.length - 1] : null;
+      const parentHidden = parent ? (parent.hidden || parent.inTemplate) : false;
+      const parentInShadow = parent ? parent.inShadow : false;
+      const parentShadowHost = parent ? parent.shadowHost : null;
+      const parentInIframe = parent ? parent.inIframe : false;
+      const parentIframeHost = parent ? parent.iframeHost : null;
 
-      // Visibility check
-      if (!this.isVisible(attrs)) continue;
+      // Visibility check on attributes
+      const isSelfHidden = !this.isVisible(attrs);
+      const isHidden = parentHidden || isSelfHidden;
 
-      // Check if ancestor is aria-hidden in string
-      if (this._isDescendantOfHidden(cleanHtml, matchIndex)) continue;
-
-      // Interactive check
-      if (!this.isInteractive(tag, attrs)) continue;
-
-      // Extract inner text if closing tag exists
-      let innerText = "";
-      if (!fullMatch.endsWith("/>") && tag !== "input" && tag !== "img") {
-        const closeTag = `</${tag}>`;
-        const closeIdx = cleanHtml.indexOf(closeTag, matchIndex + fullMatch.length);
-        if (closeIdx !== -1 && closeIdx - matchIndex < 10000) {
-          innerText = cleanHtml.slice(matchIndex + fullMatch.length, closeIdx);
+      // Check shadowroot template
+      let isShadowTemplate = false;
+      let isTemplate = false;
+      let shadowHost = parentShadowHost;
+      if (tag === "template") {
+        const shadowMode = (attrs.shadowrootmode || attrs.shadowroot || "").toLowerCase();
+        if (shadowMode === "open") {
+          isShadowTemplate = true;
+          shadowHost = parent ? (parent.selector || parent.tag) : "custom-element";
+        } else {
+          isTemplate = true; // Inert template
         }
       }
 
-      const label = generateLabel(currentIndex);
-      const role = this.getRole(tag, attrs) || tag;
-      const text = this.extractText(attrs, tag, innerText);
-      const ariaLabel = attrs["aria-label"] || null;
-      const id = attrs.id || null;
-      const name = attrs.name || null;
-      const type = tag === "input" ? (attrs.type || "text") : null;
-      const value = attrs.value !== undefined ? String(attrs.value) : (tag === "textarea" ? innerText.trim() : null);
-      const href = attrs.href || null;
+      // Check iframe
+      let isIframe = tag === "iframe";
+      let iframeHost = parentIframeHost;
+      if (isIframe) {
+        iframeHost = attrs.id ? `#${attrs.id}` : (attrs.name ? `iframe[name="${attrs.name}"]` : `iframe:nth-of-type(${count})`);
+      }
 
-      // Selector
+      // Compute selector for this element
       let selector;
-      if (id) {
-        selector = `#${id}`;
-      } else if (name && ["input", "textarea", "select", "button"].includes(tag)) {
-        selector = `${tag}[name="${name}"]`;
+      if (attrs.id) {
+        selector = `#${attrs.id}`;
+      } else if (attrs.name && ["input", "textarea", "select", "button"].includes(tag)) {
+        selector = `${tag}[name="${attrs.name}"]`;
       } else if (attrs.class) {
         const firstClass = attrs.class.trim().split(/\s+/)[0];
         selector = firstClass ? `${tag}.${firstClass}` : `${tag}:nth-of-type(${count})`;
@@ -603,28 +669,93 @@ class DomDistiller {
         selector = `${tag}:nth-of-type(${count})`;
       }
 
-      const rect = this.getRect(null, currentIndex);
+      const inShadow = parentInShadow || isShadowTemplate;
+      const inIframe = parentInIframe || isIframe;
+      const inTemplate = (parent ? parent.inTemplate : false) || isTemplate;
 
-      elements.push({
-        label,
-        tag,
-        text,
-        role,
-        selector,
-        rect,
-        visible: true,
-        ariaLabel,
-        id,
-        name,
-        type,
-        value,
-        href,
-        disabled: false,
-        inShadow,
-        shadowHost: inShadow ? attrs.shadowHost || "custom-element" : null
-      });
+      // If not self-closing, push to stack
+      if (!isSelfClosing) {
+        stack.push({
+          tag,
+          hidden: isHidden,
+          inShadow,
+          shadowHost,
+          inTemplate,
+          inIframe,
+          iframeHost,
+          selector
+        });
+      }
 
-      currentIndex++;
+      // If iframe with srcdoc, parse srcdoc recursively
+      if (isIframe && attrs.srcdoc && !isHidden) {
+        const unescaped = this._unescapeHtml(attrs.srcdoc);
+        const innerElements = this._distillHtmlString(unescaped, options);
+        for (const inner of innerElements) {
+          inner.label = generateLabel(currentIndex++);
+          inner.inIframe = true;
+          inner.iframeHost = iframeHost;
+          inner.selector = `${iframeHost} >>> ${inner.selector}`;
+          elements.push(inner);
+        }
+      }
+
+      // Check if this element should be distilled
+      if (!isHidden && !inTemplate && tag !== "template" && this.isInteractive(tag, attrs)) {
+        // Extract inner text if closing tag exists
+        let innerText = "";
+        if (!isSelfClosing && tag !== "input" && tag !== "img") {
+          const closeTag = `</${tag}>`;
+          const closeIdx = cleanHtml.indexOf(closeTag, matchIndex + fullMatch.length);
+          if (closeIdx !== -1 && closeIdx - matchIndex < 10000) {
+            innerText = cleanHtml.slice(matchIndex + fullMatch.length, closeIdx);
+          }
+        }
+
+        const label = generateLabel(currentIndex);
+        const role = this.getRole(tag, attrs) || tag;
+        const text = this.extractText(attrs, tag, innerText);
+        const ariaLabel = attrs["aria-label"] || null;
+        const id = attrs.id || null;
+        const name = attrs.name || null;
+        const type = tag === "input" ? (attrs.type || "text") : null;
+        const value = attrs.value !== undefined ? String(attrs.value) : (tag === "textarea" ? innerText.trim() : null);
+        const href = attrs.href || null;
+
+        const inShadow = parentInShadow || isShadowTemplate;
+        const inIframe = parentInIframe;
+        let finalSelector = selector;
+        if (inIframe && iframeHost) {
+          finalSelector = `${iframeHost} >>> ${finalSelector}`;
+        } else if (inShadow && shadowHost) {
+          finalSelector = `${shadowHost} >>> ${finalSelector}`;
+        }
+
+        const rect = this.getRect(null, currentIndex);
+
+        elements.push({
+          label,
+          tag,
+          text,
+          role,
+          selector: finalSelector,
+          rect,
+          visible: true,
+          ariaLabel,
+          id,
+          name,
+          type,
+          value,
+          href,
+          disabled: false,
+          inShadow,
+          shadowHost: inShadow ? shadowHost || "custom-element" : null,
+          inIframe,
+          iframeHost: inIframe ? iframeHost : null
+        });
+
+        currentIndex++;
+      }
     }
 
     return elements;
@@ -642,37 +773,6 @@ class DomDistiller {
       attrs[name] = val;
     }
     return attrs;
-  }
-
-  _isInsideShadowRoot(html, index) {
-    const prefix = html.slice(0, index);
-    const lastTemplateOpen = prefix.lastIndexOf("<template");
-    if (lastTemplateOpen === -1) return false;
-
-    const lastTemplateClose = prefix.lastIndexOf("</template>");
-    if (lastTemplateClose > lastTemplateOpen) return false;
-
-    const templateTag = prefix.slice(lastTemplateOpen);
-    return /shadowroot(?:mode)?=["']open["']/i.test(templateTag);
-  }
-
-  _isDescendantOfHidden(html, index) {
-    const prefix = html.slice(0, index);
-    const lastAriaHiddenOpen = prefix.lastIndexOf("aria-hidden=\"true\"");
-    if (lastAriaHiddenOpen === -1) return false;
-
-    // Check if tag containing aria-hidden was closed before this index
-    const openTagStart = prefix.lastIndexOf("<", lastAriaHiddenOpen);
-    if (openTagStart === -1) return false;
-    const tagMatch = prefix.slice(openTagStart).match(/^<([a-zA-Z0-9:-]+)/);
-    if (!tagMatch) return false;
-
-    const parentTag = tagMatch[1].toLowerCase();
-    const closeTag = `</${parentTag}>`;
-    const lastParentClose = prefix.lastIndexOf(closeTag);
-
-    // If parent has not been closed, element is a child of aria-hidden container
-    return lastParentClose < openTagStart;
   }
 }
 

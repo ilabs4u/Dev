@@ -1070,4 +1070,228 @@ describe("Phase 2B: Agent Tree (Distilled DOM)", () => {
       );
     });
   });
+
+  // ==========================================
+  // 10. Robustness & Deep Verification Edge Cases
+  // ==========================================
+  describe("Robustness & Deep Verification Edge Cases", () => {
+    it("ignores interactive tags inside HTML comments", () => {
+      const html = `
+        <div>
+          <!-- <button id="commented-btn">Ignored Button</button> -->
+          <!-- <a href="/secret" id="commented-link">Secret Link</a> -->
+          <button id="live-btn">Live Button</button>
+        </div>
+      `;
+      const elements = distill(html);
+      assert.equal(elements.length, 1);
+      assert.equal(elements[0].id, "live-btn");
+      assert.equal(elements[0].label, "A");
+    });
+
+    it("ignores inert template contents but distills open declarative shadow roots", () => {
+      const html = `
+        <div>
+          <template>
+            <button id="inert-btn">Inert Button</button>
+          </template>
+          <my-comp id="shadow-host">
+            <template shadowrootmode="open">
+              <button id="active-shadow-btn">Shadow Button</button>
+            </template>
+          </my-comp>
+        </div>
+      `;
+      const elements = distill(html);
+      assert.equal(elements.length, 1);
+      assert.equal(elements[0].id, "active-shadow-btn");
+      assert.equal(elements[0].inShadow, true);
+      assert.equal(elements[0].shadowHost, "#shadow-host");
+    });
+
+    it("filters nested aria-hidden elements even with identical nested container tags", () => {
+      const html = `
+        <div aria-hidden="true">
+          <div>Nested text</div>
+          <button id="hidden-btn">Should be Hidden</button>
+        </div>
+        <div>
+          <button id="visible-btn">Should be Visible</button>
+        </div>
+      `;
+      const elements = distill(html);
+      assert.equal(elements.length, 1);
+      assert.equal(elements[0].id, "visible-btn");
+    });
+
+    it("filters elements inside ancestors with display: none or hidden in HTML string", () => {
+      const html = `
+        <div style="display: none">
+          <button id="b-none">Hidden by display none</button>
+        </div>
+        <section hidden>
+          <a href="/test" id="a-hidden">Hidden by section hidden</a>
+        </section>
+        <div style="visibility: hidden">
+          <input type="button" id="inp-hidden" value="Hidden by visibility" />
+        </div>
+        <button id="b-visible">Visible Button</button>
+      `;
+      const elements = distill(html);
+      assert.equal(elements.length, 1);
+      assert.equal(elements[0].id, "b-visible");
+    });
+
+    it("rejects zero-dimension rect elements (width <= 0 or height <= 0)", () => {
+      const doc = new MockDocument();
+
+      const btnCollapsedWidth = doc.createElement("button");
+      btnCollapsedWidth.id = "btn-zero-w";
+      btnCollapsedWidth.rect = { x: 10, y: 10, width: 0, height: 40 };
+      doc.body.appendChild(btnCollapsedWidth);
+
+      const btnCollapsedHeight = doc.createElement("button");
+      btnCollapsedHeight.id = "btn-zero-h";
+      btnCollapsedHeight.rect = { x: 10, y: 60, width: 100, height: 0 };
+      doc.body.appendChild(btnCollapsedHeight);
+
+      const btnValid = doc.createElement("button");
+      btnValid.id = "btn-valid";
+      btnValid.rect = { x: 10, y: 110, width: 100, height: 40 };
+      doc.body.appendChild(btnValid);
+
+      const elements = distill(doc);
+      assert.equal(elements.length, 1);
+      assert.equal(elements[0].id, "btn-valid");
+    });
+
+    it("traverses same-origin iframes in DOM tree and flags inIframe: true", () => {
+      const doc = new MockDocument();
+
+      const iframe = doc.createElement("iframe");
+      iframe.id = "preview-frame";
+
+      const iframeDoc = new MockDocument();
+      const iframeBtn = iframeDoc.createElement("button");
+      iframeBtn.id = "inner-frame-btn";
+      iframeBtn.textContent = "Inside Frame";
+      iframeDoc.body.appendChild(iframeBtn);
+
+      iframe.contentDocument = iframeDoc;
+      doc.body.appendChild(iframe);
+
+      const pageBtn = doc.createElement("button");
+      pageBtn.id = "page-btn";
+      pageBtn.textContent = "Outside Frame";
+      doc.body.appendChild(pageBtn);
+
+      const elements = distill(doc);
+      assert.equal(elements.length, 2);
+
+      assert.equal(elements[0].id, "inner-frame-btn");
+      assert.equal(elements[0].inIframe, true);
+      assert.equal(elements[0].iframeHost, "#preview-frame");
+      assert.ok(elements[0].selector.includes("#preview-frame >>>"));
+
+      assert.equal(elements[1].id, "page-btn");
+      assert.equal(elements[1].inIframe, false);
+    });
+
+    it("distills iframe srcdoc attributes in HTML strings with inIframe: true", () => {
+      const html = `
+        <iframe id="doc-frame" srcdoc="<button id=&quot;srcdoc-btn&quot;>Srcdoc Action</button>"></iframe>
+        <button id="regular-page-btn">Regular Page</button>
+      `;
+      const elements = distill(html);
+      assert.equal(elements.length, 2);
+
+      assert.equal(elements[0].id, "srcdoc-btn");
+      assert.equal(elements[0].inIframe, true);
+      assert.equal(elements[0].iframeHost, "#doc-frame");
+      assert.equal(elements[0].selector, "#doc-frame >>> #srcdoc-btn");
+
+      assert.equal(elements[1].id, "regular-page-btn");
+      assert.equal(elements[1].inIframe, false);
+    });
+
+    it("does not duplicate contenteditable child elements as separate textboxes", () => {
+      const doc = new MockDocument();
+
+      const editor = doc.createElement("div");
+      editor.id = "rich-editor";
+      editor.setAttribute("contenteditable", "true");
+      editor._isEditable = true;
+      Object.defineProperty(editor, "isContentEditable", { get: () => true });
+
+      const p1 = doc.createElement("p");
+      p1.textContent = "Paragraph 1";
+      Object.defineProperty(p1, "isContentEditable", { get: () => true });
+      editor.appendChild(p1);
+
+      const p2 = doc.createElement("p");
+      p2.textContent = "Paragraph 2";
+      Object.defineProperty(p2, "isContentEditable", { get: () => true });
+      editor.appendChild(p2);
+
+      doc.body.appendChild(editor);
+
+      const elements = distill(doc);
+      assert.equal(elements.length, 1);
+      assert.equal(elements[0].id, "rich-editor");
+      assert.equal(elements[0].role, "textbox");
+    });
+
+    it("overlay updatePositions updates badge styles without destroying container elements", () => {
+      const doc = new MockDocument();
+      const btn = doc.createElement("button");
+      btn.id = "btn-move";
+      btn.rect = { x: 10, y: 20, width: 80, height: 30 };
+      doc.body.appendChild(btn);
+
+      const overlay = new AgentTreeOverlay();
+      overlay.mount(doc);
+      overlay.show(distill(doc));
+
+      assert.equal(overlay.badges.length, 1);
+      assert.equal(overlay.badges[0].style.left, "10px");
+      assert.equal(overlay.badges[0].style.top, "20px");
+
+      // Simulate element position change
+      btn.rect = { x: 50, y: 100, width: 80, height: 30 };
+      const originalBadgeInstance = overlay.badges[0];
+
+      overlay.updatePositions();
+
+      assert.equal(overlay.badges[0], originalBadgeInstance, "Badge DOM instance must be preserved");
+      assert.equal(overlay.badges[0].style.left, "50px");
+      assert.equal(overlay.badges[0].style.top, "100px");
+
+      overlay.destroy();
+    });
+
+    it("MCP clickElement and fillElement fall back to DOM querySelector when selector not in initial cache", async () => {
+      const doc = new MockDocument();
+      const lateBtn = doc.createElement("button");
+      lateBtn.id = "late-btn";
+      lateBtn.textContent = "Late Injected Button";
+      doc.body.appendChild(lateBtn);
+
+      const lateInput = doc.createElement("input");
+      lateInput.id = "late-input";
+      doc.body.appendChild(lateInput);
+
+      const context = new BrowserContext();
+      context.getActiveTab().document = doc;
+
+      // Click late button
+      const clickRes = await context.clickElement({ selector: "#late-btn" });
+      assert.equal(clickRes.success, true);
+      assert.equal(lateBtn.clicked, true);
+
+      // Fill late input
+      const fillRes = await context.fillElement({ selector: "#late-input", text: "dynamic_val" });
+      assert.equal(fillRes.success, true);
+      assert.equal(lateInput.value, "dynamic_val");
+    });
+  });
 });

@@ -102,7 +102,7 @@ Each task is self-contained with enough context to implement independently.
 ### Task 2B.3: Wire Agent Tree into MCP & Vim Mode
 - **Goal:** Deepen `get_interactive_elements`, `click`, and `fill` tools with distiller output; wire `<leader>at` shortcut.
 - **Files:** `src/dev/mcp-server/browser-context.js`, `src/dev/vim-mode/vim-controller.js`, `src/dev/lua-engine/keymap.js`
-- **Status:** ✅ Completed (43 new tests passing; 157 total passing)
+- **Status:** ✅ Completed (53 new tests passing; 167 total passing)
 
 ---
 

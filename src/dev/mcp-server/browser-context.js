@@ -387,7 +387,17 @@ class BrowserContext {
         throw new Error(`Element not found with Agent Tree label: ${label}`);
       }
     } else if (selector) {
-      target = tab.interactiveElements.find(e => e.selector === selector || (e.id && `#${e.id}` === selector));
+      target = tab.interactiveElements.find(e => e.selector === selector || (e.id && `#${e.id}` === selector) || (e.selector && e.selector.startsWith(selector)));
+      if (!target && tab.document && typeof tab.document.querySelector === "function") {
+        try {
+          const domEl = tab.document.querySelector(selector);
+          if (domEl) {
+            target = { element: domEl, selector, text: domEl.textContent || domEl.value || selector };
+          }
+        } catch {
+          // Continue
+        }
+      }
     }
 
     if (target && target.element && typeof target.element.click === "function") {
@@ -424,7 +434,17 @@ class BrowserContext {
         throw new Error(`Element not found with Agent Tree label: ${label}`);
       }
     } else if (selector) {
-      target = tab.interactiveElements.find(e => e.selector === selector || (e.id && `#${e.id}` === selector));
+      target = tab.interactiveElements.find(e => e.selector === selector || (e.id && `#${e.id}` === selector) || (e.selector && e.selector.startsWith(selector)));
+      if (!target && tab.document && typeof tab.document.querySelector === "function") {
+        try {
+          const domEl = tab.document.querySelector(selector);
+          if (domEl) {
+            target = { element: domEl, selector, text: domEl.value || text };
+          }
+        } catch {
+          // Continue
+        }
+      }
     }
 
     if (target) {
