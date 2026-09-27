@@ -82,6 +82,9 @@ function setupAiSidebar(targetWindow = null, options = {}) {
   const doc = win && win.document ? win.document : (typeof document !== "undefined" ? document : null);
 
   const sidebar = new AiSidebar(options);
+  if (win && sidebar.contextExtractor && typeof sidebar.contextExtractor.setWindow === "function") {
+    sidebar.contextExtractor.setWindow(win);
+  }
   if (doc) {
     sidebar.mount(doc);
   }

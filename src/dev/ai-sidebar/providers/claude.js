@@ -29,13 +29,26 @@ class ClaudeProvider extends BaseProvider {
 
     for (const msg of messages) {
       if (msg.role === "system") {
-        systemParts.push(msg.content);
+        if (msg.content && String(msg.content).trim()) {
+          systemParts.push(String(msg.content).trim());
+        }
       } else {
-        chatMessages.push({
-          role: msg.role === "assistant" ? "assistant" : "user",
-          content: msg.content
-        });
+        const role = msg.role === "assistant" ? "assistant" : "user";
+        const content = String(msg.content ?? "").trim();
+        if (!content) continue;
+
+        // Anthropic requires strictly alternating roles between user and assistant
+        if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].role === role) {
+          chatMessages[chatMessages.length - 1].content += "\n\n" + content;
+        } else {
+          chatMessages.push({ role, content });
+        }
       }
+    }
+
+    // Anthropic requires the first message to have role 'user'
+    if (chatMessages.length > 0 && chatMessages[0].role === "assistant") {
+      chatMessages.unshift({ role: "user", content: "Continue" });
     }
 
     // Claude requires at least one non-system message
@@ -69,7 +82,8 @@ class ClaudeProvider extends BaseProvider {
     const effectiveApiKey = validOptions.apiKey || this.apiKey;
     const headers = {
       "Content-Type": "application/json",
-      "anthropic-version": "2023-06-01"
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
     };
 
     if (effectiveApiKey) {
@@ -152,7 +166,9 @@ class ClaudeProvider extends BaseProvider {
         }
 
         if (event === "error" || parsed.type === "error") {
-          const errMsg = parsed.error?.message || "Claude stream error";
+          const errMsg = typeof parsed.error === "string"
+            ? parsed.error
+            : (parsed.error?.message || "Claude stream error");
           throw new ProviderError(errMsg, response.status);
         }
 

@@ -1179,5 +1179,206 @@ describe("Phase 2C: AI Sidebar (BYOM) Suite", () => {
         await bridge.ask("hello");
       }, /Provider 'unknown-ghost-provider' is not registered/);
     });
+
+    it("iterateStreamLines yields lines from synchronous Arrays of strings and Uint8Arrays", async () => {
+      const stringArray = ["line 1\n", "line 2\n", "line 3"];
+      const lines = [];
+      for await (const line of iterateStreamLines(stringArray)) {
+        lines.push(line);
+      }
+      assert.deepEqual(lines, ["line 1", "line 2", "line 3"]);
+
+      const encoder = new TextEncoder();
+      const uintArray = [encoder.encode("part A\n"), encoder.encode("part B\n")];
+      const uintLines = [];
+      for await (const line of iterateStreamLines(uintArray)) {
+        uintLines.push(line);
+      }
+      assert.deepEqual(uintLines, ["part A", "part B"]);
+    });
+
+    it("parseSseStream preserves code indentation without aggressive trim()", async () => {
+      const payload = "data:    def my_code():\n\n";
+      const events = [];
+      for await (const ev of parseSseStream(payload)) {
+        events.push(ev);
+      }
+      assert.equal(events.length, 1);
+      assert.equal(events[0].data, "   def my_code():");
+    });
+
+    it("StreamChunk supports isDone getter and setter alias", () => {
+      const chunk = new StreamChunk("foo", false);
+      assert.equal(chunk.done, false);
+      assert.equal(chunk.isDone, false);
+      chunk.isDone = true;
+      assert.equal(chunk.done, true);
+      assert.equal(chunk.isDone, true);
+    });
+
+    it("ClaudeProvider formatMessages merges consecutive user messages and ensures leading user role", () => {
+      const provider = new ClaudeProvider();
+      const input = [
+        { role: "system", content: "You are an assistant." },
+        { role: "user", content: "First question." },
+        { role: "user", content: "Followup elaboration." },
+        { role: "assistant", content: "Response." },
+        { role: "assistant", content: "More response." }
+      ];
+
+      const formatted = provider.formatMessages(input);
+      assert.equal(formatted.system, "You are an assistant.");
+      assert.equal(formatted.messages.length, 2);
+      assert.equal(formatted.messages[0].role, "user");
+      assert.equal(formatted.messages[0].content, "First question.\n\nFollowup elaboration.");
+      assert.equal(formatted.messages[1].role, "assistant");
+      assert.equal(formatted.messages[1].content, "Response.\n\nMore response.");
+
+      // Initial assistant message handling
+      const leadingAssistant = [{ role: "assistant", content: "Hi" }];
+      const res = provider.formatMessages(leadingAssistant);
+      assert.equal(res.messages[0].role, "user");
+      assert.equal(res.messages[1].role, "assistant");
+    });
+
+    it("ClaudeProvider sends anthropic-dangerous-direct-browser-access header", async () => {
+      const provider = new ClaudeProvider({ apiKey: "sk-ant-test" });
+      let capturedHeaders = null;
+
+      globalThis.fetch = async (url, options) => {
+        capturedHeaders = options.headers;
+        return createMockStreamResponse(["event: message_stop\ndata: {}\n\n"]);
+      };
+
+      for await (const chunk of provider.chat("hello")) {
+        // consume
+      }
+
+      assert.equal(capturedHeaders["anthropic-dangerous-direct-browser-access"], "true");
+      assert.equal(capturedHeaders["x-api-key"], "sk-ant-test");
+    });
+
+    it("renderMarkdown parses CRLF code blocks and preserves regex tokens without corruption", () => {
+      const inputWithTokens = "```bash\r\necho $1 and $& and $` and $'\r\n```";
+      const rendered = renderMarkdown(inputWithTokens);
+
+      assert.ok(rendered.includes('<pre><code class="language-bash">echo $1 and $&amp; and $` and $&#039;'));
+      assert.ok(!rendered.includes("__CODE_BLOCK_"));
+    });
+
+    it("renderMarkdown formats headings H4-H6 and safe links", () => {
+      const md = "#### H4 Title\n##### H5 Title\n###### H6 Title\n[Visit Us](https://example.com)";
+      const rendered = renderMarkdown(md);
+
+      assert.ok(rendered.includes("<h4>H4 Title</h4>"));
+      assert.ok(rendered.includes("<h5>H5 Title</h5>"));
+      assert.ok(rendered.includes("<h6>H6 Title</h6>"));
+      assert.ok(rendered.includes('<a href="https://example.com" target="_blank" rel="noopener noreferrer">Visit Us</a>'));
+    });
+
+    it("ContextExtractor captures unhandledrejection and respects empty string and custom maxLength", () => {
+      const listeners = new Map();
+      const mockWin = {
+        addEventListener: (event, handler) => listeners.set(event, handler)
+      };
+
+      const extractor = new ContextExtractor({ window: mockWin });
+      const rejectHandler = listeners.get("unhandledrejection");
+      assert.ok(typeof rejectHandler === "function");
+
+      rejectHandler({ reason: new Error("Network timeout") });
+      const errors = extractor.extractConsoleErrors();
+      assert.equal(errors.length, 1);
+      assert.ok(errors[0].message.includes("Network timeout"));
+
+      // opts.text = "" should return empty without falling back to window.document
+      const emptyRes = extractor.extractPageText({ text: "" });
+      assert.equal(emptyRes.text, "");
+      assert.equal(emptyRes.truncated, false);
+
+      // custom maxLength
+      const truncRes = extractor.extractPageText({ text: "1234567890", maxLength: 5 });
+      assert.ok(truncRes.text.startsWith("12345"));
+      assert.equal(truncRes.truncated, true);
+    });
+
+    it("DevLuaBridge updates defaultRegistry on assignment and propagates custom url and apiKey", async () => {
+      const bridge = new DevLuaBridge();
+      bridge.init();
+
+      bridge.evaluateLuaScript('ai.default_backend = "lmstudio"');
+      assert.equal(bridge.getDefaultBackend(), "lmstudio");
+      assert.equal(defaultRegistry.getActiveId(), "lmstudio");
+
+      // Set custom url and apiKey in Lua
+      bridge.evaluateLuaScript('ai.ollama.url = "http://custom-ollama:11434"');
+      bridge.evaluateLuaScript('ai.openai.api_key = "sk-custom-lua-key"');
+
+      let capturedOptions = null;
+      const originalChat = defaultRegistry.chat;
+      defaultRegistry.chat = async function* (msgs, opts) {
+        capturedOptions = opts;
+        yield new StreamChunk("resp");
+      };
+
+      try {
+        await bridge.ask("hello", { provider: "ollama" });
+        assert.equal(capturedOptions.baseUrl, "http://custom-ollama:11434");
+
+        await bridge.ask("hello", { provider: "openai" });
+        assert.equal(capturedOptions.apiKey, "sk-custom-lua-key");
+      } finally {
+        defaultRegistry.chat = originalChat;
+        defaultRegistry.setActive("ollama");
+      }
+    });
+
+    it("AiSidebar.sendMessage does not pollute conversation history with error banners", async () => {
+      const doc = new MockDOMDocument();
+      const registry = new ProviderRegistry();
+      class FailingProvider extends BaseProvider {
+        constructor() { super({ id: "fail" }); }
+        async *chat() {
+          throw new ProviderError("Connection refused by server");
+        }
+      }
+      registry.register(new FailingProvider());
+      registry.setActive("fail");
+
+      const sidebar = new AiSidebar({ registry });
+      sidebar.mount(doc);
+
+      await sidebar.sendMessage("Test failure");
+
+      assert.equal(sidebar.isStreaming, false);
+      assert.ok(sidebar.dom.statusMsg.textContent.includes("Error"));
+      // The conversation messages array should not contain the error banner as assistant response
+      const assistantMessages = sidebar.messages.filter(m => m.role === "assistant");
+      assert.equal(assistantMessages.length, 0);
+    });
+
+    it("AiSidebar input ignores Enter during IME composition", () => {
+      const doc = new MockDOMDocument();
+      const sidebar = new AiSidebar();
+      sidebar.mount(doc);
+
+      let sent = false;
+      sidebar.sendMessage = () => { sent = true; };
+
+      sidebar.dom.input.value = "typing...";
+      sidebar.dom.input.dispatchEvent({ key: "Enter", shiftKey: false, isComposing: true, preventDefault: () => {} });
+      assert.equal(sent, false);
+
+      sidebar.dom.input.dispatchEvent({ key: "Enter", shiftKey: false, keyCode: 229, preventDefault: () => {} });
+      assert.equal(sent, false);
+    });
+
+    it("setupAiSidebar links target window to contextExtractor", () => {
+      const doc = new MockDOMDocument();
+      const mockWin = { document: doc, addEventListener: () => {} };
+      const sidebar = setupAiSidebar(mockWin);
+
+      assert.equal(sidebar.contextExtractor.targetWindow, mockWin);
+    });
   });
 });

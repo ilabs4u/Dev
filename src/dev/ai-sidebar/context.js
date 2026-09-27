@@ -37,6 +37,15 @@ class ContextExtractor {
           timestamp: Date.now()
         });
       });
+
+      win.addEventListener("unhandledrejection", (event) => {
+        const reason = event.reason;
+        this.addConsoleError({
+          message: reason?.message || String(reason || "Unhandled Promise Rejection"),
+          source: reason?.stack?.split("\n")?.[1]?.trim() || "promise",
+          timestamp: Date.now()
+        });
+      });
     }
   }
 
@@ -68,10 +77,11 @@ class ContextExtractor {
    * @returns {{ text: string, title: string, url: string, truncated: boolean }}
    */
   extractPageText(opts = {}) {
-    if (opts.text) {
-      const isTruncated = opts.text.length > this.maxTextLength;
+    if (typeof opts.text === "string") {
+      const limit = opts.maxLength || this.maxTextLength;
+      const isTruncated = opts.text.length > limit;
       return {
-        text: isTruncated ? opts.text.slice(0, this.maxTextLength) + "\n...[truncated]" : opts.text,
+        text: isTruncated ? opts.text.slice(0, limit) + "\n...[truncated]" : opts.text,
         title: opts.title || "Page",
         url: opts.url || "about:blank",
         truncated: isTruncated

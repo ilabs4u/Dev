@@ -126,7 +126,7 @@ Each task is self-contained with enough context to implement independently.
 ### Task 2C.4: Lua Bridge & Vim Mode Integration
 - **Goal:** Expose `ai.default_backend`, `ai.ask(prompt)`, `ai.summarize(text)` to Lua engine; wire `<leader>ai` shortcut to toggle AI sidebar.
 - **Files:** `src/dev/lua-engine/lua-bridge.js`, `src/dev/vim-mode/vim-controller.js`, `src/dev/lua-engine/keymap.js`
-- **Status:** ✅ Completed (49 new tests passing; 216 total passing)
+- **Status:** ✅ Completed (61 new tests passing; 228 total passing)
 
 ---
 

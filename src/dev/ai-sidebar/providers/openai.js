@@ -115,10 +115,10 @@ class OpenAIProvider extends BaseProvider {
         }
 
         if (parsed.error) {
-          throw new ProviderError(
-            parsed.error.message || `${this.name} stream error`,
-            response.status
-          );
+          const errMsg = typeof parsed.error === "string"
+            ? parsed.error
+            : (parsed.error.message || `${this.name} stream error`);
+          throw new ProviderError(errMsg, response.status);
         }
 
         const choice = parsed.choices?.[0];

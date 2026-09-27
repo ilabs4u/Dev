@@ -181,7 +181,7 @@ class DevLuaBridge {
       // Handle ai.default_backend = "..."
       const aiBackendMatch = line.match(/^ai\.default_backend\s*=\s*["']([^"']+)["']/);
       if (aiBackendMatch) {
-        this.aiSettings.default_backend = aiBackendMatch[1];
+        this.setDefaultBackend(aiBackendMatch[1]);
         continue;
       }
 
@@ -228,9 +228,13 @@ class DevLuaBridge {
       const provider = options.provider || this.aiSettings.default_backend;
       const providerConfig = this.aiSettings[provider] || {};
       const model = options.model || providerConfig.model;
+      const baseUrl = options.baseUrl || providerConfig.url || providerConfig.baseUrl;
+      const apiKey = options.apiKey || providerConfig.api_key || providerConfig.apiKey;
       const res = await ask(prompt, {
         provider,
         model,
+        baseUrl,
+        apiKey,
         registry: defaultRegistry,
         ...options
       });
@@ -253,9 +257,13 @@ class DevLuaBridge {
       const provider = options.provider || this.aiSettings.default_backend;
       const providerConfig = this.aiSettings[provider] || {};
       const model = options.model || providerConfig.model;
+      const baseUrl = options.baseUrl || providerConfig.url || providerConfig.baseUrl;
+      const apiKey = options.apiKey || providerConfig.api_key || providerConfig.apiKey;
       const res = await summarize(text, {
         provider,
         model,
+        baseUrl,
+        apiKey,
         registry: defaultRegistry,
         ...options
       });

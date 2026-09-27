@@ -38,6 +38,10 @@ class OllamaProvider extends BaseProvider {
       }
     };
 
+    if (validOptions.maxTokens) {
+      requestBody.options.num_predict = validOptions.maxTokens;
+    }
+
     let response;
     try {
       response = await fetch(url, {

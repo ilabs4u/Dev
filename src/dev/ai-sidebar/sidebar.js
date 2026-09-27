@@ -32,9 +32,9 @@ function escapeHtml(str) {
 function renderMarkdown(markdown) {
   if (!markdown) return "";
 
-  // 1. Extract and replace code blocks (including unclosed streaming blocks)
+  // 1. Extract and replace code blocks (including unclosed streaming blocks and CRLF)
   const codeBlocks = [];
-  let processed = markdown.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)(?:```|$)/g, (match, lang, code) => {
+  let processed = markdown.replace(/```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)(?:```|$)/g, (match, lang, code) => {
     const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`;
     codeBlocks.push({ lang: lang || "text", code });
     return placeholder;
@@ -43,7 +43,10 @@ function renderMarkdown(markdown) {
   // 2. Escape HTML on text outside code blocks
   processed = escapeHtml(processed);
 
-  // 3. Headers (# H1, ## H2, ### H3)
+  // 3. Headers (# H1 .. ###### H6)
+  processed = processed.replace(/^###### (.*$)/gim, "<h6>$1</h6>");
+  processed = processed.replace(/^##### (.*$)/gim, "<h5>$1</h5>");
+  processed = processed.replace(/^#### (.*$)/gim, "<h4>$1</h4>");
   processed = processed.replace(/^### (.*$)/gim, "<h3>$1</h3>");
   processed = processed.replace(/^## (.*$)/gim, "<h2>$1</h2>");
   processed = processed.replace(/^# (.*$)/gim, "<h1>$1</h1>");
@@ -55,22 +58,26 @@ function renderMarkdown(markdown) {
   // 5. Inline Code (`code`)
   processed = processed.replace(/`([^`]+)`/g, "<code>$1</code>");
 
-  // 6. Blockquotes
+  // 6. Safe links [title](https://...)
+  processed = processed.replace(/\[([^\]]+)\]\((https?:\/\/[^\s<)"]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // 7. Blockquotes
   processed = processed.replace(/^> (.*$)/gim, "<blockquote>$1</blockquote>");
 
-  // 7. Unordered lists
+  // 8. Unordered and ordered lists
   processed = processed.replace(/^\s*[-*]\s+(.*)$/gim, "<li>$1</li>");
+  processed = processed.replace(/^\s*\d+\.\s+(.*)$/gim, "<li>$1</li>");
   processed = processed.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
   // Clean up duplicated adjacent <ul> wrappers
   processed = processed.replace(/<\/ul>\s*<ul>/g, "");
 
-  // 8. Paragraphs / Linebreaks
+  // 9. Paragraphs / Linebreaks
   processed = processed.replace(/\n\n+/g, "</p><p>");
   processed = processed.replace(/\n/g, "<br>");
   processed = `<p>${processed}</p>`;
   processed = processed.replace(/<p>\s*<\/p>/g, "");
 
-  // 9. Reinsert sanitized code blocks
+  // 10. Reinsert sanitized code blocks safely using function replacer to prevent $ corruption
   for (let i = 0; i < codeBlocks.length; i++) {
     const { lang, code } = codeBlocks[i];
     const escapedCode = escapeHtml(code);
@@ -84,7 +91,7 @@ function renderMarkdown(markdown) {
         <pre><code class="language-${escapeHtml(lang)}">${escapedCode}</code></pre>
       </div>
     `.trim();
-    processed = processed.replace(`__CODE_BLOCK_${i}__`, blockHtml);
+    processed = processed.replace(`__CODE_BLOCK_${i}__`, () => blockHtml);
   }
 
   return processed;
@@ -158,21 +165,62 @@ class AiSidebar {
         container.innerHTML = fs.readFileSync(htmlPath, "utf-8");
       } catch {
         container.innerHTML = `
-          <aside id="dev-ai-sidebar" class="dev-ai-sidebar collapsed">
+          <aside id="dev-ai-sidebar" class="dev-ai-sidebar collapsed" aria-label="Dev Browser AI Sidebar">
             <div class="ai-header">
-              <span class="ai-title">Dev AI</span>
-              <button id="ai-btn-close">×</button>
-              <select id="ai-select-provider"><option value="ollama">Ollama</option></select>
-              <input id="ai-input-model" value="llama3.2" />
+              <div class="ai-header-title-row">
+                <div class="ai-title-wrap">
+                  <span class="ai-logo-icon">⚡</span>
+                  <span class="ai-title">Dev AI</span>
+                  <span id="ai-status-indicator" class="ai-status-indicator ready" title="Ready"></span>
+                </div>
+                <div class="ai-header-actions">
+                  <button id="ai-btn-clear" class="ai-icon-btn" title="Clear Conversation" aria-label="Clear Conversation">Clear</button>
+                  <button id="ai-btn-close" class="ai-icon-btn" title="Close AI Sidebar" aria-label="Close AI Sidebar">×</button>
+                </div>
+              </div>
+              <div class="ai-config-row">
+                <div class="ai-control-group">
+                  <label for="ai-select-provider">Backend</label>
+                  <select id="ai-select-provider" class="ai-select">
+                    <option value="ollama">Ollama (Local)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="claude">Claude (Anthropic)</option>
+                    <option value="lmstudio">LM Studio (Local)</option>
+                  </select>
+                </div>
+                <div class="ai-control-group model-group">
+                  <label for="ai-input-model">Model</label>
+                  <input type="text" id="ai-input-model" class="ai-input-sm" value="llama3.2" placeholder="e.g. llama3.2">
+                </div>
+              </div>
             </div>
-            <div class="ai-chips-bar">
-              <button class="ai-chip" data-action="summarize-page">Summarize</button>
+            <div class="ai-chips-bar" role="toolbar" aria-label="Page Context Quick Actions">
+              <button class="ai-chip" data-action="summarize-page" title="Summarize current page text"><span>📄</span> Summarize</button>
+              <button class="ai-chip" data-action="explain-error" title="Explain recent console errors"><span>⚠️</span> Errors</button>
+              <button class="ai-chip" data-action="analyze-page" title="Analyze page elements with Agent Tree"><span>🌳</span> Elements</button>
+              <button class="ai-chip" data-action="ask-selection" title="Ask about selected text"><span>✂️</span> Selection</button>
             </div>
-            <div id="ai-messages" class="ai-messages"></div>
+            <div id="ai-messages" class="ai-messages" role="log" aria-live="polite">
+              <div class="ai-message ai-message-assistant system-intro">
+                <div class="ai-msg-avatar">⚡</div>
+                <div class="ai-msg-body">
+                  <div class="ai-msg-text">
+                    <p><strong>Dev AI</strong> ready.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="ai-input-container">
-              <textarea id="ai-input"></textarea>
-              <button id="ai-btn-send">Send</button>
-              <button id="ai-btn-stop" style="display:none">Stop</button>
+              <div id="ai-status-bar" class="ai-status-bar">
+                <span id="ai-status-msg" class="ai-status-msg">Ready</span>
+              </div>
+              <div class="ai-textarea-wrapper">
+                <textarea id="ai-input" class="ai-textarea" rows="2" placeholder="Ask AI..."></textarea>
+                <div class="ai-btn-group">
+                  <button id="ai-btn-stop" class="ai-btn ai-btn-stop" style="display: none;">Stop</button>
+                  <button id="ai-btn-send" class="ai-btn ai-btn-send">Send</button>
+                </div>
+              </div>
             </div>
           </aside>
         `;
@@ -287,6 +335,7 @@ class AiSidebar {
 
     if (this.dom.input) {
       this.dom.input.addEventListener("keydown", (e) => {
+        if (e.isComposing || e.keyCode === 229) return;
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           this.submitInput();
@@ -323,7 +372,8 @@ class AiSidebar {
       this.dom.messages.addEventListener("click", (e) => {
         const copyBtn = e.target.closest(".ai-code-copy");
         if (copyBtn) {
-          const rawCode = copyBtn.getAttribute("data-raw-code") || "";
+          const codeEl = copyBtn.closest(".ai-code-block")?.querySelector("code");
+          const rawCode = (codeEl ? (codeEl.innerText ?? codeEl.textContent) : null) || copyBtn.getAttribute("data-raw-code") || "";
           this.copyToClipboard(rawCode, copyBtn);
         }
       });
@@ -431,7 +481,12 @@ class AiSidebar {
       } else {
         this.setStatus(`Error: ${err.message}`, "error");
         this.appendAssistantToken(`\n\n> ⚠️ **Error:** ${err.message}`);
-        this.messages.push({ role: "assistant", content: this.activeAssistantContent });
+        if (this.activeAssistantContent) {
+          const cleanContent = this.activeAssistantContent.replace(/\n\n> ⚠️ \*\*Error:\*\*.*$/, "").trim();
+          if (cleanContent) {
+            this.messages.push({ role: "assistant", content: cleanContent });
+          }
+        }
       }
     } finally {
       this.isStreaming = false;
@@ -566,20 +621,23 @@ class AiSidebar {
   }
 
   fallbackCopy(text, btnElement) {
-    if (typeof document !== "undefined") {
-      const textarea = document.createElement("textarea");
+    const doc = this.doc || (typeof document !== "undefined" ? document : null);
+    if (doc && doc.body) {
+      const textarea = doc.createElement("textarea");
       textarea.value = text;
       textarea.style.position = "fixed";
       textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
+      doc.body.appendChild(textarea);
+      if (typeof textarea.select === "function") textarea.select();
       try {
-        document.execCommand("copy");
+        if (typeof doc.execCommand === "function") {
+          doc.execCommand("copy");
+        }
         this.showCopiedFeedback(btnElement);
       } catch {
         // Ignore fallback copy error
       }
-      document.body.removeChild(textarea);
+      doc.body.removeChild(textarea);
     }
   }
 

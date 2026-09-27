@@ -12,6 +12,14 @@ class StreamChunk {
     this.raw = raw;
   }
 
+  get isDone() {
+    return this.done;
+  }
+
+  set isDone(val) {
+    this.done = Boolean(val);
+  }
+
   toString() {
     return this.text;
   }
@@ -36,7 +44,7 @@ class ProviderError extends Error {
 
 /**
  * Async generator that decodes and yields raw lines from any stream type
- * (Web ReadableStream, Node.js Readable, string, or AsyncIterable).
+ * (Web ReadableStream, Node.js Readable, string, Array, or AsyncIterable).
  */
 async function* iterateStreamLines(body) {
   if (!body) return;
@@ -47,6 +55,7 @@ async function* iterateStreamLines(body) {
   if (typeof body === "string") {
     let str = body;
     if (str.endsWith("\n")) str = str.slice(0, -1);
+    if (str.endsWith("\r")) str = str.slice(0, -1);
     const lines = str.split(/\r?\n/);
     for (const line of lines) {
       yield line;
@@ -54,7 +63,7 @@ async function* iterateStreamLines(body) {
     return;
   }
 
-  if (body[Symbol.asyncIterator]) {
+  if (body && (body[Symbol.asyncIterator] || body[Symbol.iterator])) {
     for await (const chunk of body) {
       buffer += typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
       const lines = buffer.split(/\r?\n/);
@@ -63,7 +72,7 @@ async function* iterateStreamLines(body) {
         yield line;
       }
     }
-  } else if (typeof body.getReader === "function") {
+  } else if (body && typeof body.getReader === "function") {
     const reader = body.getReader();
     try {
       while (true) {
@@ -81,6 +90,12 @@ async function* iterateStreamLines(body) {
     }
   }
 
+  try {
+    buffer += decoder.decode();
+  } catch {
+    // Ignore decoder flush errors
+  }
+
   if (buffer.length > 0) {
     yield buffer;
   }
@@ -88,7 +103,7 @@ async function* iterateStreamLines(body) {
 
 /**
  * Async generator for Server-Sent Events (SSE).
- * Emits { event, data } items.
+ * Emits { event, data } items conforming to W3C EventSource spec.
  */
 async function* parseSseStream(body) {
   let currentEvent = null;
@@ -115,9 +130,15 @@ async function* parseSseStream(body) {
     }
 
     if (line.startsWith("event:")) {
-      currentEvent = line.slice(6).trim();
+      let eventVal = line.slice(6);
+      if (eventVal.startsWith(" ")) eventVal = eventVal.slice(1);
+      currentEvent = eventVal.trim();
     } else if (line.startsWith("data:")) {
-      currentData.push(line.slice(5).trim());
+      let dataVal = line.slice(5);
+      if (dataVal.startsWith(" ")) dataVal = dataVal.slice(1);
+      currentData.push(dataVal);
+    } else if (line === "data") {
+      currentData.push("");
     }
   }
 
