@@ -28,36 +28,47 @@ For detailed instructions on building Dev Browser from source, please see our [B
 
 ## Lua Configuration
 
-Everything in Dev Browser can be configured via `init.lua`. Here's a quick example:
+Everything in Dev Browser can be configured via `init.lua` (`~/.config/dev/init.lua`). Here's a quick example:
 
 ```lua
--- ~/.dev/init.lua
-dev.ui.set_theme("gruvbox")
+-- ~/.config/dev/init.lua
 
-dev.keys.bind("ctrl+shift+k", function()
-    dev.tabs.new("https://github.com")
-end)
+-- Vim Keybindings
+keymap.set("n", "j", "scroll_down")
+keymap.set("n", "k", "scroll_up")
+keymap.set("n", "t", "new_tab")
+keymap.set("n", "<C-p>", "command_palette")
+keymap.set("n", "<leader>ip", "rotate_proxy")
 
-dev.network.on_request(function(req)
-    if req.url:match("tracker") then
-        return req:cancel()
-    end
-end)
+-- Workspaces
+workspace.create("dev", {
+  theme = "gruvbox",
+  container = "development",
+  proxy = "direct",
+})
+
+-- AI Agent & MCP
+agent.mcp.enabled = true
+agent.mcp.port = 9222
+agent.permissions.allow_navigation = true
+agent.permissions.allow_click = true
+
+-- Plugins
+plugin.load("base64")
+plugin.load("uuid")
 ```
 
 ## AI Agent Integration
 
-Dev Browser natively supports the Model Context Protocol (MCP). Integrate local or remote agents seamlessly:
+Dev Browser natively supports the Model Context Protocol (MCP). Connect Claude Desktop or any MCP client directly:
 
 ```json
 {
-  "mcp": {
-    "servers": [
-      {
-        "name": "dev-assistant",
-        "command": "python -m my_mcp_server"
-      }
-    ]
+  "mcpServers": {
+    "dev-browser": {
+      "command": "node",
+      "args": ["path/to/dev-browser/src/dev/mcp-server/transports/stdio.js"]
+    }
   }
 }
 ```

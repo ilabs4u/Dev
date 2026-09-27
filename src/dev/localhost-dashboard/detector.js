@@ -56,7 +56,7 @@ const FRAMEWORK_SIGNATURES = [
     category: "JavaScript",
     icon: "⚡",
     match: (headers, body) => {
-      return body.includes("@vite/client") || body.includes("/@vite/") || body.includes("vite");
+      return body.includes("/@vite/client") || body.includes("@vite/client") || body.includes("/@vite/");
     }
   },
   {
@@ -73,7 +73,7 @@ const FRAMEWORK_SIGNATURES = [
     category: "JavaScript",
     icon: "⚛️",
     match: (headers, body) => {
-      return body.includes("react-root") || body.includes("_reactRootContainer") || body.includes("react");
+      return body.includes("data-reactroot") || body.includes("_reactRootContainer") || body.includes("__REACT_DEVTOOLS_GLOBAL_HOOK__") || /<div[^>]+id=["']root["'][^>]*data-reactroot/i.test(body);
     }
   },
   {
@@ -81,7 +81,7 @@ const FRAMEWORK_SIGNATURES = [
     category: "JavaScript",
     icon: "💚",
     match: (headers, body) => {
-      return body.includes("__vue__") || body.includes("data-v-") || body.includes("vue");
+      return body.includes("__vue__") || body.includes("__vue_app__") || /data-v-[a-f0-9]{6,8}/i.test(body) || /<div[^>]+id=["']app["'][^>]*data-v-/i.test(body);
     }
   },
   {
@@ -89,7 +89,7 @@ const FRAMEWORK_SIGNATURES = [
     category: "JavaScript",
     icon: "🔥",
     match: (headers, body) => {
-      return body.includes("svelte") || body.includes("__svelte");
+      return body.includes("__svelte") || /class=["'][^"']*\bsvelte-[a-z0-9]+\b/i.test(body);
     }
   },
   // Backend / Other
@@ -126,7 +126,7 @@ const FRAMEWORK_SIGNATURES = [
     match: (headers, body) => {
       const server = (headers["server"] || "").toLowerCase();
       const powered = (headers["x-powered-by"] || "").toLowerCase();
-      return server.includes("puma") || powered.includes("phusion") || body.includes("rails");
+      return server.includes("puma") || powered.includes("phusion") || (body.includes("csrf-param") && body.includes("authenticity_token")) || body.includes("data-turbo-track");
     }
   },
   {

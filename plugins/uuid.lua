@@ -1,4 +1,6 @@
 -- Dev Browser Plugin: UUID v4 Generator
+math.randomseed(os.time() + math.floor(os.clock() * 1000000))
+
 local M = {}
 M.name = "UUID Generator"
 M.description = "Generate UUID v4 strings"

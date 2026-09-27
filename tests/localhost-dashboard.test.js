@@ -101,4 +101,46 @@ describe("Task 1.4: Localhost Dashboard & Framework Detection", () => {
     assert.ok(s5173, "Port 5173 service should be found");
     assert.equal(s5173.framework, "Vite Dev Server");
   });
+
+  it("avoids false positives on common words (invite, reactive, revenue, rails)", () => {
+    // Port 7000 is not in PORT_HEURISTICS
+    const textInfo = {
+      port: 7000,
+      headers: {},
+      body: "<html><body>Please invite your team to review reactive code near the revenue office with hand rails.</body></html>"
+    };
+    const res = detectService(textInfo);
+    assert.notEqual(res.framework, "Vite Dev Server", "Should not match 'invite' as Vite");
+    assert.notEqual(res.framework, "React App", "Should not match 'reactive' as React");
+    assert.notEqual(res.framework, "Vue App", "Should not match 'revenue' as Vue");
+    assert.notEqual(res.framework, "Ruby on Rails", "Should not match 'rails' as Ruby on Rails");
+    assert.equal(res.framework, "HTTP Service");
+  });
+
+  it("requires specific markers for React App rather than generic react substring", () => {
+    const genericReact = {
+      port: 7001,
+      headers: {},
+      body: "<html><body>Welcome to the Chemical Reaction Portal</body></html>"
+    };
+    const res = detectService(genericReact);
+    assert.notEqual(res.framework, "React App");
+    assert.equal(res.framework, "HTTP Service");
+
+    const realReact = {
+      port: 7001,
+      headers: {},
+      body: "<html><body><div id='root' data-reactroot=''>Hello</div></body></html>"
+    };
+    const realRes = detectService(realReact);
+    assert.equal(realRes.framework, "React App");
+  });
+
+  it("escapes special HTML characters in shared utils", () => {
+    const { escapeHtml } = require("../src/dev/shared/utils");
+    assert.equal(escapeHtml('<script>alert("xss")</script>'), '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
+    assert.equal(escapeHtml("Hello 'world' & \"friends\""), "Hello &#39;world&#39; &amp; &quot;friends&quot;");
+    assert.equal(escapeHtml(null), "");
+    assert.equal(escapeHtml(undefined), "");
+  });
 });

@@ -4,14 +4,21 @@
 
 // If running in browser, require/import scanner or use window.DevLocalhost
 let LocalhostScannerClass;
+let escapeHtml;
 if (typeof require !== "undefined") {
   try {
     LocalhostScannerClass = require("./scanner").LocalhostScanner;
   } catch {
     LocalhostScannerClass = window.LocalhostScanner;
   }
+  try {
+    escapeHtml = require("../shared/utils").escapeHtml;
+  } catch {
+    escapeHtml = (str) => String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
 } else {
   LocalhostScannerClass = window.LocalhostScanner;
+  escapeHtml = (str) => String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 class DashboardUI {
@@ -124,26 +131,17 @@ class DashboardUI {
         </div>
 
         <div class="service-meta">
-          <a href="${s.url}" class="service-url" target="_blank">${s.url}</a>
+          <a href="${escapeHtml(s.url)}" class="service-url" target="_blank">${escapeHtml(s.url)}</a>
           <span class="latency">${s.latencyMs || 0}ms</span>
         </div>
 
         <div class="service-actions">
-          <a href="${s.url}" target="_blank" class="card-btn primary">Open Tab</a>
+          <a href="${escapeHtml(s.url)}" target="_blank" class="card-btn primary">Open Tab</a>
           <button class="card-btn copy-url-btn" data-url="${escapeHtml(s.url)}">Copy URL</button>
         </div>
       </div>
     `).join("");
   }
-}
-
-function escapeHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 if (typeof document !== "undefined" && document.getElementById("services-grid")) {

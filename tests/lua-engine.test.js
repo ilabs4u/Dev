@@ -62,4 +62,17 @@ describe("Task 1.1: LuaJIT Engine & Bridge Integration", () => {
     assert.ok(patchContent.includes("moz.build"));
     assert.ok(patchContent.includes("luajit-5.1"));
   });
+
+  it("guards plugins/hash.lua against missing dev.crypto bridge", () => {
+    const hashLuaPath = path.resolve(__dirname, "..", "plugins", "hash.lua");
+    const content = fs.readFileSync(hashLuaPath, "utf-8");
+    assert.ok(content.includes("dev.crypto bridge (not yet available)"));
+    assert.ok(content.includes("-- TODO: requires native dev.crypto bridge (Phase 3)"));
+  });
+
+  it("seeds math.randomseed in plugins/uuid.lua", () => {
+    const uuidLuaPath = path.resolve(__dirname, "..", "plugins", "uuid.lua");
+    const content = fs.readFileSync(uuidLuaPath, "utf-8");
+    assert.ok(content.includes("math.randomseed(os.time() + math.floor(os.clock() * 1000000))"));
+  });
 });
