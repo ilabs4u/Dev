@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Localhost Dashboard — Dev Browser</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="brand">
+        <span class="brand-logo">⚡</span>
+        <div>
+          <h1 class="brand-title">Dev Browser</h1>
+          <p class="brand-subtitle">Localhost Workstation &amp; Service Monitor</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="refresh-btn" class="action-btn">
+          <span class="refresh-icon">↻</span> Rescan Ports
+        </button>
+      </div>
+    </header>
+
+    <!-- Search and Status Bar -->
+    <section class="controls-section">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Filter by port, framework, or title (e.g. 8000, Python, Vite)..." />
+      </div>
+      <div class="status-bar" id="status-bar">
+        <span class="status-indicator"></span>
+        <span id="status-text">Scanning 127.0.0.1...</span>
+      </div>
+    </section>
+
+    <!-- Services Grid -->
+    <main class="services-container">
+      <div class="section-title-bar">
+        <h2 class="section-title">Active Localhost Services</h2>
+        <span id="service-count-badge" class="badge">0 detected</span>
+      </div>
+
+      <div id="services-grid" class="services-grid">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-icon">📡</div>
+        <h3>No Active Local Services Detected</h3>
+        <p>No HTTP services were found running on common ports.</p>
+        <div class="terminal-tip">
+          <code>$ python -m http.server 8000</code>
+          <span>or</span>
+          <code>$ npm run dev</code>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
