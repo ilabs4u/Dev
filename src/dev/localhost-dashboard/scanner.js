@@ -4,6 +4,7 @@
  */
 
 const { detectService } = require("./detector");
+const { DockerClient } = require("../docker-dashboard/docker-client");
 
 // Common development server ports prioritized for instant discovery
 const COMMON_DEV_PORTS = [

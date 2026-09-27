@@ -79,7 +79,14 @@ class DashboardUI {
 
     try {
       const result = await this.scanner.scan();
-      this.services = result.services || [];
+      this.services = [];
+      const seen = new Set();
+      for(const s of (result.services || [])) {
+        if(!seen.has(s.port)) {
+          seen.add(s.port);
+          this.services.push(s);
+        }
+      }
 
       if (this.statusText) {
         this.statusText.textContent = `Scanned in ${result.scanDurationMs}ms • ${this.services.length} active services on 127.0.0.1`;

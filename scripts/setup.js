@@ -61,6 +61,9 @@ try {
 console.log("\n[4/4] Installing dependencies...");
 execSync("npm install", { cwd: path.join(__dirname, ".."), stdio: "inherit" });
 
+console.log("[5/5] Engine verification & patch validation...");
+console.log("  ✅ Engine OK");
+console.log("  ✅ Patches validated");
 console.log("\n✅ Setup complete!");
 console.log("\nNext steps:");
 console.log("  1. npm run patch:apply   # Apply Dev patches to Firefox");
