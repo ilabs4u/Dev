@@ -10,53 +10,107 @@ Each task is self-contained with enough context to implement independently.
 
 ---
 
-## 🔴 Phase 1 — Foundation (Current)
+## 🟢 Phase 1 — Foundation (Completed)
 
 ### Task 1.1: Integrate LuaJIT into Gecko Build
-- **Context:** Dev Browser is a Zen Browser fork. Custom code goes in `src/dev/`.
-- **Goal:** Embed LuaJIT so that the browser loads `~/.config/dev/init.lua` at startup.
-- **Constraints:** Don't modify engine/ files directly — generate patches. LuaJIT source should be vendored in `src/dev/lua-engine/vendor/`.
-- **Verify:** `print("hello from lua")` in init.lua outputs to browser console.
-- **Files:** `src/dev/lua-engine/`, `patches/003-lua-engine-hooks.patch`
-- **Status:** ✅ Completed
+- **Status:** ✅ Completed (56 tests passing)
 
 ### Task 1.2: Implement keymap.set() Lua API
-- **Context:** LuaJIT is embedded (Task 1.1). Need to expose keyboard event interception.
-- **Goal:** `keymap.set("n", "j", "scroll_down")` in init.lua makes `j` scroll the page down.
-- **Constraints:** Must support modal editing (normal/insert modes). Must not interfere with text input fields.
-- **Verify:** Press `j` on a webpage → page scrolls down. Type `j` in a text field → letter `j` appears.
-- **Files:** `src/dev/lua-engine/keymap.js`, `src/dev/vim-mode/`
 - **Status:** ✅ Completed
 
 ### Task 1.3: Build Command Palette
-- **Context:** Zen Browser already has UI infrastructure. We need a Ctrl+K command bar.
-- **Goal:** Pressing Ctrl+K opens a fuzzy-search overlay listing all browser actions, open tabs, and Lua commands.
-- **Constraints:** Must be fast (<50ms to open). Must support keyboard navigation (arrow keys, Enter, Escape).
-- **Verify:** Ctrl+K → type "new tab" → press Enter → new tab opens.
-- **Files:** `src/dev/command-palette/`
 - **Status:** ✅ Completed
 
 ### Task 1.4: Build Localhost Dashboard
-- **Context:** New Tab page should show active localhost services.
-- **Goal:** New tab scans ports 1000-65535 on 127.0.0.1 and displays active services.
-- **Constraints:** Scan must complete in <2 seconds. Must detect service type from HTTP response headers.
-- **Verify:** Start `python -m http.server 8000` → open new tab → shows "localhost:8000 — Python HTTP Server".
-- **Files:** `src/dev/localhost-dashboard/`
 - **Status:** ✅ Completed
 
 ### Task 1.5: Implement Basic Proxy Switching
-- **Context:** Dev Browser should support one-click IP change via proxy.
-- **Goal:** UI button in toolbar to switch between Direct, SOCKS5 proxy, and Tor.
-- **Constraints:** Use Firefox's `proxy.onRequest` API. Must show current IP in toolbar.
-- **Verify:** Click "Tor" → whatismyip.com shows a different IP.
-- **Files:** `src/dev/network-panel/`
 - **Status:** ✅ Completed
 
-## 🟡 Phase 2 — AI Platform (Next)
+---
 
-### Task 2.1: Build MCP Server
+## 🟢 Phase 1.5 — Hotfix & Polish (Completed)
+
+### Task 1.5.1: Guard `plugins/hash.lua` against missing `dev.crypto` bridge
+- **Status:** ✅ Completed
+
+### Task 1.5.2: Seed `plugins/uuid.lua` with non-deterministic random seed
+- **Status:** ✅ Completed
+
+### Task 1.5.3: Align `README.md` Lua API examples with implementation
+- **Status:** ✅ Completed
+
+### Task 1.5.4: Tighten localhost framework detector matching & negative tests
+- **Status:** ✅ Completed
+
+### Task 1.5.5: Shared `escapeHtml` utility and `s.url` escaping in dashboard
+- **Status:** ✅ Completed
+
+---
+
+## 🟢 Phase 2A — MCP Server (Completed)
+
+### Task 2A.1: MCP JSON-RPC 2.0 Protocol Core
+- **Goal:** Implement JSON-RPC 2.0 protocol core (`initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/read`).
+- **Files:** `src/dev/mcp-server/protocol.js`
+- **Status:** ✅ Completed
+
+### Task 2A.2: Stdio Transport
+- **Goal:** Stdin/stdout transport for Claude Desktop / AI tools.
+- **Files:** `src/dev/mcp-server/transports/stdio.js`
+- **Status:** ✅ Completed
+
+### Task 2A.3: WebSocket Transport
+- **Goal:** Lightweight RFC 6455 WebSocket transport on port 9222.
+- **Files:** `src/dev/mcp-server/transports/websocket.js`
+- **Status:** ✅ Completed
+
+### Task 2A.4: 19 Browser MCP Tools
+- **Goal:** Implement all 19 tools (navigation, tabs, interaction, content, devtools).
+- **Files:** `src/dev/mcp-server/tools/`
+- **Status:** ✅ Completed
+
+### Task 2A.5: Permission Manager
+- **Goal:** Enforce `agent.permissions.*` security model and confirmation dialogs.
+- **Files:** `src/dev/mcp-server/permission-manager.js`
+- **Status:** ✅ Completed
+
+### Task 2A.6: MCP Resources
+- **Goal:** Implement `mcp://dom/current`, `mcp://network/failed`, `mcp://console/errors`.
+- **Files:** `src/dev/mcp-server/resources/`
+- **Status:** ✅ Completed
+
+### Task 2A.7: Comprehensive Test Suite
+- **Goal:** 30+ tests verifying protocol, tools, permissions, resources, transports.
+- **Files:** `tests/mcp-server.test.js`
+- **Status:** ✅ Completed (39 new tests passing; 100 total passing)
+
+---
+
+## 🟡 Phase 2B — Agent Tree (Distilled DOM) (Next)
+
+### Task 2B.1: DOM Distillation Engine
+- **Goal:** Walk DOM, identify interactive elements, assign labels (A, B, C... AA, AB...), extract semantics in <100ms.
+- **Files:** `src/dev/agent-tree/distiller.js`
 - **Status:** ⬜ Not started
-- *(Details to be added after Phase 1 completion)*
+
+### Task 2B.2: Visual Overlay
+- **Goal:** Persistent toggleable overlay showing Agent Tree labels over interactive page elements.
+- **Files:** `src/dev/agent-tree/overlay.js`, `overlay.css`
+- **Status:** ⬜ Not started
+
+### Task 2B.3: Wire Agent Tree into MCP
+- **Goal:** Deepen `get_interactive_elements`, `click`, and `fill` tools with distiller output.
+- **Status:** ⬜ Not started
+
+---
+
+## 🟡 Phase 2C — AI Sidebar (BYOM)
+- Providers (Ollama, OpenAI, Claude, LM Studio), Chat UI, and Lua AI API.
+- **Status:** ⬜ Not started
+
+---
 
 ## 🟢 Phase 3 — Developer Workstation (Future)
-## 🔵 Phase 4 — Ecosystem (Future)
+- Embedded Terminal, Dev Toolkit, DNS Panel, Theme Engine, Docker Dashboard.
+- **Status:** ⬜ Not started

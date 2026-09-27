@@ -1,6 +1,6 @@
 {
   "name": "dev-browser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The world's first AI-agent-native, Lua-scriptable developer browser",
   "author": "iLabs <ilabs4u@github.com>",
   "license": "MPL-2.0",
