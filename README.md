@@ -1,6 +1,12 @@
-# 🚀 Dev Browser
+<p align="center">
+  <img src="assets/logo.png" width="160" height="160" alt="Dev Browser Logo">
+</p>
 
-The world's first AI-agent-native, Lua-scriptable developer browser.
+# <p align="center">Dev Browser</p>
+
+<p align="center">
+  <em>The world's first AI-agent-native, Lua-scriptable developer browser.</em>
+</p>
 
 ![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)
 ![GitHub stars](https://img.shields.io/github/stars/ilabs4u/Dev)

@@ -9,6 +9,8 @@
     "url": "https://github.com/ilabs4u/Dev.git"
   },
   "scripts": {
+    "start": "node scripts/dev-server.js",
+    "dev": "node scripts/dev-server.js",
     "setup": "node scripts/setup.js",
     "setup:linux": "bash scripts/setup.sh",
     "setup:windows": "powershell scripts/setup.ps1",

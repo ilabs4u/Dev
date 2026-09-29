@@ -52,6 +52,14 @@ body {
   gap: 14px;
 }
 
+.brand-logo-img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.35);
+}
+
 .brand-logo {
   font-size: 28px;
   background: rgba(56, 189, 248, 0.15);
